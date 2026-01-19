@@ -8,6 +8,7 @@ type Props = {
   mode: "create" | "edit";
   event?: EventDisplay;
   onClose?: () => void;
+  initialStartsAt?: string;
 };
 
 function toInputValue(date?: string | null) {
@@ -17,13 +18,24 @@ function toInputValue(date?: string | null) {
   return instance.toISOString().slice(0, 16);
 }
 
-export function EventForm({ mode, event, onClose }: Props) {
+function defaultInputTimestamp() {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  return now.toISOString().slice(0, 16);
+}
+
+export function EventForm({
+  mode,
+  event,
+  onClose,
+  initialStartsAt,
+}: Props) {
   const router = useRouter();
   const [title, setTitle] = useState(event?.title ?? "");
   const [description, setDescription] = useState(event?.description ?? "");
   const [location, setLocation] = useState(event?.location ?? "");
   const [startsAt, setStartsAt] = useState(
-    toInputValue(event?.startsAt) || new Date().toISOString().slice(0, 16)
+    toInputValue(event?.startsAt) || initialStartsAt || defaultInputTimestamp()
   );
   const [endsAt, setEndsAt] = useState(toInputValue(event?.endsAt));
   const [error, setError] = useState<string | null>(null);
@@ -66,8 +78,7 @@ export function EventForm({ mode, event, onClose }: Props) {
         setTitle("");
         setDescription("");
         setLocation("");
-        const now = new Date();
-        setStartsAt(now.toISOString().slice(0, 16));
+        setStartsAt(initialStartsAt ?? defaultInputTimestamp());
         setEndsAt("");
       }
     } catch {

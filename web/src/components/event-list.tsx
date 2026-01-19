@@ -41,6 +41,32 @@ const statusLabels = {
   NO: "不参加",
 };
 
+const statusSections: Array<{
+  key: "YES" | "MAYBE" | "NO";
+  label: string;
+  accent: string;
+  pill: string;
+}> = [
+  {
+    key: "YES",
+    label: "参加",
+    accent: "text-emerald-700",
+    pill: "bg-emerald-50 text-emerald-700",
+  },
+  {
+    key: "MAYBE",
+    label: "未定",
+    accent: "text-amber-700",
+    pill: "bg-amber-50 text-amber-700",
+  },
+  {
+    key: "NO",
+    label: "不参加",
+    accent: "text-rose-700",
+    pill: "bg-rose-50 text-rose-700",
+  },
+];
+
 export function EventList({ events, memberId, canEdit = false }: Props) {
   if (events.length === 0) {
     return (
@@ -119,8 +145,23 @@ function EventCard({ event, memberId, canEdit }: EventCardProps) {
     { YES: 0, NO: 0, MAYBE: 0 }
   );
 
+  const attendancesByStatus = event.attendances.reduce(
+    (acc, attendance) => {
+      acc[attendance.status].push(attendance);
+      return acc;
+    },
+    {
+      YES: [] as EventAttendanceDisplay[],
+      MAYBE: [] as EventAttendanceDisplay[],
+      NO: [] as EventAttendanceDisplay[],
+    }
+  );
+
   return (
-    <article className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+    <article
+      id={`event-${event.id}`}
+      className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+    >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-wide text-zinc-400">
@@ -207,20 +248,53 @@ function EventCard({ event, memberId, canEdit }: EventCardProps) {
         </button>
       </form>
 
-      {event.attendances.length > 0 ? (
-        <div className="mt-4 rounded-lg bg-zinc-50 p-4 text-sm text-zinc-600">
-          <p className="font-medium text-zinc-700">参加状況</p>
-          <ul className="mt-2 space-y-1">
-            {event.attendances.map((attendance) => (
-              <li key={`${attendance.eventId}-${attendance.memberId}`}>
-                {formatter.format(new Date(attendance.respondedAt))} -{" "}
-                {attendance.memberName} : {statusLabels[attendance.status]}
-                {attendance.comment ? `（${attendance.comment}）` : ""}
-              </li>
-            ))}
-          </ul>
+      <div className="mt-4 rounded-2xl border border-zinc-200 p-4">
+        <div className="flex items-center justify-between">
+          <p className="font-medium text-zinc-800">参加状況リスト</p>
+          <p className="text-sm text-zinc-500">
+            回答者 {event.attendances.length} 名
+          </p>
         </div>
-      ) : null}
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          {statusSections.map(({ key, label, accent, pill }) => (
+            <section
+              key={key}
+              className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
+            >
+              <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+                <p className={`text-sm font-semibold ${accent}`}>{label}</p>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${pill}`}
+                >
+                  {counts[key]}名
+                </span>
+              </div>
+              {attendancesByStatus[key].length > 0 ? (
+                <ul className="mt-3 space-y-3 text-sm text-zinc-600">
+                  {attendancesByStatus[key].map((attendance) => (
+                    <li
+                      key={`${attendance.eventId}-${attendance.memberId}`}
+                      className="rounded-lg bg-zinc-50 p-3"
+                    >
+                      <p className="font-medium text-zinc-900">
+                        {attendance.memberName}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        {formatter.format(new Date(attendance.respondedAt))}
+                        {attendance.comment
+                          ? `｜${attendance.comment}`
+                          : ""}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-sm text-zinc-400">まだ回答はありません。</p>
+              )}
+            </section>
+          ))}
+        </div>
+      </div>
     </article>
   );
 }

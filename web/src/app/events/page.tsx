@@ -6,6 +6,14 @@ import { EventList, type EventDisplay } from "@/components/event-list";
 import { EventForm } from "@/components/event-form";
 import { ROLE_ADMIN } from "@/lib/roles";
 
+function buildInitialStartsAt(date?: string) {
+  if (!date) return undefined;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return undefined;
+  const target = new Date(`${date}T09:00:00`);
+  target.setMinutes(target.getMinutes() - target.getTimezoneOffset());
+  return target.toISOString().slice(0, 16);
+}
+
 async function fetchEventData(groupId: number, memberId: number) {
   const [group, events, member] = await Promise.all([
     prisma.group.findUnique({ where: { id: groupId } }),
@@ -46,7 +54,11 @@ async function fetchEventData(groupId: number, memberId: number) {
   };
 }
 
-export default async function EventsPage() {
+export default async function EventsPage({
+  searchParams,
+}: {
+  searchParams: { date?: string };
+}) {
   const session = await getSessionFromCookies();
   if (!session) {
     redirect("/join");
@@ -57,6 +69,7 @@ export default async function EventsPage() {
     redirect("/join");
   }
   const canEdit = data.member?.role === ROLE_ADMIN;
+  const initialStartsAt = buildInitialStartsAt(searchParams?.date);
 
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-10">
@@ -95,7 +108,11 @@ export default async function EventsPage() {
           ) : null}
         </header>
 
-        {canEdit ? <EventForm mode="create" /> : null}
+        {canEdit ? (
+          <div id="create-event">
+            <EventForm mode="create" initialStartsAt={initialStartsAt} />
+          </div>
+        ) : null}
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-zinc-900">
