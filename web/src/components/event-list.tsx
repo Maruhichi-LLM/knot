@@ -99,28 +99,44 @@ type EventCardProps = {
 function EventCard({ event, memberId, canEdit }: EventCardProps) {
   const router = useRouter();
   const existing = event.attendances.find((item) => item.memberId === memberId);
-  const [status, setStatus] = useState<"YES" | "NO" | "MAYBE">(
+  const [currentStatus, setCurrentStatus] = useState<"YES" | "NO" | "MAYBE">(
     existing?.status ?? "MAYBE"
   );
-  const [comment, setComment] = useState(existing?.comment ?? "");
+  const [currentComment, setCurrentComment] = useState(existing?.comment ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<"YES" | "NO" | "MAYBE" | null>(null);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
-    setStatus(existing?.status ?? "MAYBE");
-    setComment(existing?.comment ?? "");
+    setCurrentStatus(existing?.status ?? "MAYBE");
+    setCurrentComment(existing?.comment ?? "");
   }, [existing?.status, existing?.comment]);
+
+  function openDialog(nextStatus: "YES" | "NO" | "MAYBE") {
+    setPendingStatus(nextStatus);
+    setCommentDraft(existing?.comment ?? "");
+    setError(null);
+    setIsDialogOpen(true);
+  }
+
+  function closeDialog() {
+    setIsDialogOpen(false);
+    setPendingStatus(null);
+  }
 
   async function handleSubmit(eventForm: FormEvent<HTMLFormElement>) {
     eventForm.preventDefault();
+    if (!pendingStatus) return;
     setIsSubmitting(true);
     setError(null);
     try {
       const response = await fetch(`/api/events/${event.id}/attendance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, comment }),
+        body: JSON.stringify({ status: pendingStatus, comment: commentDraft }),
       });
       if (!response.ok) {
         const data = (await response.json().catch(() => ({}))) as {
@@ -129,11 +145,14 @@ function EventCard({ event, memberId, canEdit }: EventCardProps) {
         setError(data.error ?? "更新に失敗しました。");
         return;
       }
+      setCurrentStatus(pendingStatus);
+      setCurrentComment(commentDraft);
       router.refresh();
     } catch {
       setError("通信エラーが発生しました。");
     } finally {
       setIsSubmitting(false);
+      closeDialog();
     }
   }
 
@@ -204,49 +223,34 @@ function EventCard({ event, memberId, canEdit }: EventCardProps) {
         </div>
       ) : null}
 
-      <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+      <div className="mt-4 space-y-3">
+        <p className="text-sm text-zinc-500">参加状況を選択してください</p>
         <div className="flex flex-wrap gap-3">
           {(Object.keys(statusLabels) as Array<"YES" | "NO" | "MAYBE">).map(
             (value) => (
-              <label
+              <button
                 key={value}
-                className={`flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-sm ${
-                  status === value
+                type="button"
+                onClick={() => openDialog(value)}
+                className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                  currentStatus === value
                     ? "border-sky-500 bg-sky-50 text-sky-700"
-                    : "border-zinc-300 text-zinc-600"
+                    : "border-zinc-300 text-zinc-600 hover:border-sky-200 hover:text-sky-600"
                 }`}
               >
-                <input
-                  type="radio"
-                  className="hidden"
-                  checked={status === value}
-                  onChange={() => setStatus(value)}
-                />
                 {statusLabels[value]}
-              </label>
+              </button>
             )
           )}
         </div>
-        <textarea
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-          placeholder="備考（任意）"
-          rows={2}
-        />
-        {error ? (
-          <p className="text-sm text-red-600" role="alert">
-            {error}
+        {currentComment ? (
+          <p className="text-sm text-zinc-600">
+            最新のコメント: <span className="text-zinc-900">{currentComment}</span>
           </p>
-        ) : null}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full rounded-lg bg-sky-600 py-2 text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-300"
-        >
-          {isSubmitting ? "送信中..." : "出欠を送信"}
-        </button>
-      </form>
+        ) : (
+          <p className="text-sm text-zinc-500">コメントは未入力です。</p>
+        )}
+      </div>
 
       <div className="mt-4 rounded-2xl border border-zinc-200 p-4">
         <div className="flex items-center justify-between">
@@ -295,6 +299,50 @@ function EventCard({ event, memberId, canEdit }: EventCardProps) {
           ))}
         </div>
       </div>
+
+      {isDialogOpen && pendingStatus ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-6">
+          <form
+            onSubmit={handleSubmit}
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+          >
+            <p className="text-sm text-zinc-500">参加状況を更新します</p>
+            <h3 className="mt-1 text-2xl font-semibold text-zinc-900">
+              {statusLabels[pendingStatus]}
+            </h3>
+            <label className="mt-4 block text-sm text-zinc-600">
+              コメント（任意）
+              <textarea
+                value={commentDraft}
+                onChange={(e) => setCommentDraft(e.target.value)}
+                rows={3}
+                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+              />
+            </label>
+            {error ? (
+              <p className="mt-2 text-sm text-red-600" role="alert">
+                {error}
+              </p>
+            ) : null}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeDialog}
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-600"
+              >
+                キャンセル
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-300"
+              >
+                {isSubmitting ? "送信中..." : "更新する"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </article>
   );
 }
