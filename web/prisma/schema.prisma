@@ -19,6 +19,7 @@ model Group {
   accountingSetting    AccountingSetting?
   accounts             Account[]
   financialAccounts    FinancialAccount[]
+  budgets              Budget[]
 }
 
 model Member {
@@ -129,6 +130,7 @@ model AccountingSetting {
   fiscalYearEndMonth   Int
   approvalFlow         String?
   carryoverAmount      Int      @default(0)
+  budgetEnabled        Boolean  @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }
@@ -143,6 +145,7 @@ model Account {
   isArchived Boolean     @default(false)
   order      Int         @default(0)
   createdAt  DateTime    @default(now())
+  budgets    Budget[]
 }
 
 model FinancialAccount {
@@ -168,4 +171,17 @@ enum AccountType {
 enum FinancialAccountType {
   CASH
   BANK
+}
+
+model Budget {
+  id         Int      @id @default(autoincrement())
+  groupId    Int
+  group      Group    @relation(fields: [groupId], references: [id])
+  accountId  Int
+  account    Account  @relation(fields: [accountId], references: [id])
+  fiscalYear Int
+  amount     Int
+  createdAt  DateTime @default(now())
+
+  @@unique([groupId, accountId, fiscalYear])
 }

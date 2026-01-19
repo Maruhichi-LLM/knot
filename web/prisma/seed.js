@@ -12,6 +12,7 @@ async function main() {
   await prisma.event.deleteMany();
   await prisma.approval.deleteMany();
   await prisma.ledger.deleteMany();
+  await prisma.budget.deleteMany();
   await prisma.financialAccount.deleteMany();
   await prisma.account.deleteMany();
   await prisma.accountingSetting.deleteMany();
@@ -33,6 +34,7 @@ async function main() {
       fiscalYearEndMonth: 3,
       approvalFlow: '会計係 → 管理者 → 監査',
       carryoverAmount: 50000,
+      budgetEnabled: true,
     },
   });
 
@@ -96,6 +98,57 @@ async function main() {
       isCustom: false,
       order: index,
     })),
+  });
+
+  const accounts = await prisma.account.findMany({
+    where: { groupId: group.id },
+  });
+
+  const accountByName = Object.fromEntries(
+    accounts.map((account) => [account.name, account])
+  );
+
+  const currentYear = new Date().getFullYear();
+
+  await prisma.budget.createMany({
+    data: [
+      {
+        groupId: group.id,
+        accountId: accountByName["会費収入"].id,
+        fiscalYear: currentYear,
+        amount: 300000,
+      },
+      {
+        groupId: group.id,
+        accountId: accountByName["事業収入"].id,
+        fiscalYear: currentYear,
+        amount: 120000,
+      },
+      {
+        groupId: group.id,
+        accountId: accountByName["補助金等収入"].id,
+        fiscalYear: currentYear,
+        amount: 80000,
+      },
+      {
+        groupId: group.id,
+        accountId: accountByName["水道光熱費"].id,
+        fiscalYear: currentYear,
+        amount: 20000,
+      },
+      {
+        groupId: group.id,
+        accountId: accountByName["旅費交通費"].id,
+        fiscalYear: currentYear,
+        amount: 50000,
+      },
+      {
+        groupId: group.id,
+        accountId: accountByName["消耗品費"].id,
+        fiscalYear: currentYear,
+        amount: 70000,
+      },
+    ],
   });
 
   await prisma.financialAccount.createMany({
