@@ -1,0 +1,29 @@
+version: "3.9"
+services:
+  app:
+    build: ./web
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+    environment:
+      - DATABASE_URL=postgresql://app:app@db:5432/app
+    depends_on:
+      - db
+    command: npm run dev
+
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
