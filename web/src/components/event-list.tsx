@@ -77,7 +77,7 @@ export function EventList({ events, memberId, canEdit = false }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {events.map((event) => (
         <EventCard
           key={event.id}
@@ -109,6 +109,7 @@ function EventCard({ event, memberId, canEdit }: EventCardProps) {
   const [pendingStatus, setPendingStatus] = useState<"YES" | "NO" | "MAYBE" | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     setCurrentStatus(existing?.status ?? "MAYBE");
@@ -179,124 +180,152 @@ function EventCard({ event, memberId, canEdit }: EventCardProps) {
   return (
     <article
       id={`event-${event.id}`}
-      className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+      className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm"
     >
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-zinc-400">
-            {formatter.format(new Date(event.startsAt))}
-            {event.endsAt
-              ? ` 〜 ${formatter.format(new Date(event.endsAt))}`
-              : ""}
-          </p>
-          <h3 className="text-2xl font-semibold text-zinc-900">{event.title}</h3>
-          {event.location ? (
-            <p className="text-sm text-zinc-500">場所: {event.location}</p>
-          ) : null}
-        </div>
-        <div className="rounded-lg bg-zinc-100 px-3 py-2 text-sm text-zinc-600">
-          <p>参加: {counts.YES}</p>
-          <p>未定: {counts.MAYBE}</p>
-          <p>不参加: {counts.NO}</p>
-        </div>
-        {canEdit ? (
-          <button
-            type="button"
-            onClick={() => setIsEditing((prev) => !prev)}
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50"
-          >
-            {isEditing ? "編集を閉じる" : "編集"}
-          </button>
-        ) : null}
-      </div>
-      {event.description ? (
-        <p className="mt-3 text-sm text-zinc-600">{event.description}</p>
-      ) : null}
-
-      {isEditing ? (
-        <div className="mt-4">
-          <EventForm
-            mode="edit"
-            event={event}
-            onClose={() => setIsEditing(false)}
-          />
-        </div>
-      ) : null}
-
-      <div className="mt-4 space-y-3">
-        <p className="text-sm text-zinc-500">参加状況を選択してください</p>
-        <div className="flex flex-wrap gap-3">
-          {(Object.keys(statusLabels) as Array<"YES" | "NO" | "MAYBE">).map(
-            (value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => openDialog(value)}
-                className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
-                  currentStatus === value
-                    ? "border-sky-500 bg-sky-50 text-sky-700"
-                    : "border-zinc-300 text-zinc-600 hover:border-sky-200 hover:text-sky-600"
-                }`}
-              >
-                {statusLabels[value]}
-              </button>
-            )
-          )}
-        </div>
-        {currentComment ? (
-          <p className="text-sm text-zinc-600">
-            最新のコメント: <span className="text-zinc-900">{currentComment}</span>
-          </p>
-        ) : (
-          <p className="text-sm text-zinc-500">コメントは未入力です。</p>
-        )}
-      </div>
-
-      <div className="mt-4 rounded-2xl border border-zinc-200 p-4">
-        <div className="flex items-center justify-between">
-          <p className="font-medium text-zinc-800">参加状況リスト</p>
-          <p className="text-sm text-zinc-500">
-            回答者 {event.attendances.length} 名
-          </p>
-        </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          {statusSections.map(({ key, label, accent, pill }) => (
-            <section
-              key={key}
-              className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
-            >
-              <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
-                <p className={`text-sm font-semibold ${accent}`}>{label}</p>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${pill}`}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        <div className="flex-1 space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-zinc-400">
+                {formatter.format(new Date(event.startsAt))}
+                {event.endsAt
+                  ? ` 〜 ${formatter.format(new Date(event.endsAt))}`
+                  : ""}
+              </p>
+              <h3 className="text-lg font-semibold text-zinc-900">
+                {event.title}
+              </h3>
+              {event.location ? (
+                <p className="text-xs text-zinc-500">場所: {event.location}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-600">
+              <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
+                参加 {counts.YES}
+              </span>
+              <span className="rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700">
+                未定 {counts.MAYBE}
+              </span>
+              <span className="rounded-full bg-rose-50 px-2.5 py-1 font-semibold text-rose-700">
+                不参加 {counts.NO}
+              </span>
+              {canEdit ? (
+                <button
+                  type="button"
+                  onClick={() => setIsEditing((prev) => !prev)}
+                  className="rounded-lg border border-zinc-300 px-3 py-1 text-xs text-zinc-600 hover:bg-zinc-50"
                 >
-                  {counts[key]}名
-                </span>
-              </div>
-              {attendancesByStatus[key].length > 0 ? (
-                <ul className="mt-3 space-y-3 text-sm text-zinc-600">
-                  {attendancesByStatus[key].map((attendance) => (
-                    <li
-                      key={`${attendance.eventId}-${attendance.memberId}`}
-                      className="rounded-lg bg-zinc-50 p-3"
-                    >
-                      <p className="font-medium text-zinc-900">
-                        {attendance.memberName}
-                      </p>
-                      <p className="mt-1 text-xs text-zinc-500">
-                        {formatter.format(new Date(attendance.respondedAt))}
-                        {attendance.comment
-                          ? `｜${attendance.comment}`
-                          : ""}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-3 text-sm text-zinc-400">まだ回答はありません。</p>
+                  {isEditing ? "編集を閉じる" : "編集"}
+                </button>
+              ) : null}
+            </div>
+          </div>
+          {event.description ? (
+            <p className="text-xs text-zinc-600">{event.description}</p>
+          ) : null}
+
+          {isEditing ? (
+            <div>
+              <EventForm
+                mode="edit"
+                event={event}
+                onClose={() => setIsEditing(false)}
+              />
+            </div>
+          ) : null}
+
+          <div className="space-y-3">
+            <p className="text-xs text-zinc-500">参加状況を選択してください</p>
+            <div className="flex flex-wrap gap-3">
+              {(Object.keys(statusLabels) as Array<"YES" | "NO" | "MAYBE">).map(
+                (value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => openDialog(value)}
+                    className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                      currentStatus === value
+                        ? "border-sky-500 bg-sky-50 text-sky-700"
+                        : "border-zinc-300 text-zinc-600 hover:border-sky-200 hover:text-sky-600"
+                    }`}
+                  >
+                    {statusLabels[value]}
+                  </button>
+                )
               )}
-            </section>
-          ))}
+            </div>
+            {currentComment ? (
+              <p className="text-sm text-zinc-600">
+                最新のコメント:{" "}
+                <span className="text-zinc-900">{currentComment}</span>
+              </p>
+            ) : (
+              <p className="text-sm text-zinc-500">コメントは未入力です。</p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-zinc-200 p-3 lg:w-72">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-zinc-800">参加者リスト</p>
+              <p className="text-xs text-zinc-500">
+                回答者 {event.attendances.length} 名
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDetailsOpen((prev) => !prev)}
+              className="text-xs font-semibold text-sky-600 hover:text-sky-500"
+            >
+              {detailsOpen ? "詳細を閉じる" : "詳細を見る"}
+            </button>
+          </div>
+          {detailsOpen ? (
+            <div className="mt-4 space-y-3 text-sm text-zinc-700">
+              {statusSections.map(({ key, label, accent, pill }) => (
+                <section
+                  key={key}
+                  className="rounded-xl border border-zinc-100 bg-white p-3 shadow-sm"
+                >
+                  <div className="flex items-center justify-between border-b border-zinc-100 pb-1">
+                    <p className={`text-xs font-semibold ${accent}`}>{label}</p>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${pill}`}
+                    >
+                      {counts[key]}名
+                    </span>
+                  </div>
+                  {attendancesByStatus[key].length > 0 ? (
+                    <ul className="mt-2 space-y-2 text-xs text-zinc-600">
+                      {attendancesByStatus[key].map((attendance) => (
+                        <li
+                          key={`${attendance.eventId}-${attendance.memberId}`}
+                          className="rounded-lg bg-zinc-50 p-2"
+                        >
+                          <p className="font-medium text-zinc-900">
+                            {attendance.memberName}
+                          </p>
+                          <p className="mt-1 text-[11px] text-zinc-500">
+                            {formatter.format(
+                              new Date(attendance.respondedAt)
+                            )}
+                            {attendance.comment
+                              ? `｜${attendance.comment}`
+                              : ""}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 text-xs text-zinc-400">
+                      まだ回答はありません。
+                    </p>
+                  )}
+                </section>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
 

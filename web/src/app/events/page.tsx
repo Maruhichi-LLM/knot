@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
@@ -6,7 +5,6 @@ import { EventList, type EventDisplay } from "@/components/event-list";
 import { EventForm } from "@/components/event-form";
 import { ROLE_ADMIN } from "@/lib/roles";
 import { ensureModuleEnabled } from "@/lib/modules";
-import { KNOT_CALENDAR_PATH } from "@/lib/routes";
 
 function buildInitialStartsAt(date?: string) {
   if (!date) return undefined;
@@ -76,7 +74,7 @@ export default async function EventsPage({
 
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-10">
-      <div className="mx-auto flex max-w-4xl flex-col gap-8">
+      <div className="mx-auto flex max-w-5xl flex-col gap-8">
         <header className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
           <p className="text-sm uppercase tracking-wide text-zinc-500">
             Knot Event
@@ -87,12 +85,6 @@ export default async function EventsPage({
           <p className="mt-2 text-sm text-zinc-600">
             予定の共有と参加可否を確認できます。
           </p>
-          <Link
-            href={KNOT_CALENDAR_PATH}
-            className="mt-4 inline-flex text-sm text-sky-600 underline"
-          >
-            ← Knot Calendar へ戻る
-          </Link>
           {canEdit ? (
             <div className="mt-4 flex flex-wrap gap-3 text-sm">
               <a
@@ -111,24 +103,43 @@ export default async function EventsPage({
           ) : null}
         </header>
 
-        {canEdit ? (
-          <div id="create-event">
-            <EventForm mode="create" initialStartsAt={initialStartsAt} />
-          </div>
-        ) : null}
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)]">
+          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-zinc-900">
+                今後のイベント
+              </h2>
+              <p className="text-xs text-zinc-500">
+                {data.events.length} 件の予定
+              </p>
+            </div>
+            <div className="mt-4">
+              <EventList
+                events={data.events}
+                memberId={session.memberId}
+                canEdit={canEdit}
+              />
+            </div>
+          </section>
 
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">
-            今後のイベント
-          </h2>
-          <div className="mt-4">
-            <EventList
-              events={data.events}
-              memberId={session.memberId}
-              canEdit={canEdit}
-            />
-          </div>
-        </section>
+          <aside className="rounded-2xl border border-dashed border-sky-200 bg-white/80 p-5 shadow-sm lg:sticky lg:top-24 lg:h-fit">
+            <h3 className="text-base font-semibold text-zinc-900">
+              新しくイベントを作成
+            </h3>
+            <p className="mt-1 text-sm text-zinc-600">
+              タイトル・日時・場所を入力して保存してください。
+            </p>
+            {canEdit ? (
+              <div id="create-event" className="mt-4">
+                <EventForm mode="create" initialStartsAt={initialStartsAt} />
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-zinc-500">
+                イベントの登録は管理者のみが利用できます。
+              </p>
+            )}
+          </aside>
+        </div>
       </div>
     </div>
   );

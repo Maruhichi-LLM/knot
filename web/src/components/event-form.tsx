@@ -122,7 +122,7 @@ export function EventForm({
           className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
         />
       </label>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="space-y-3">
         <label className="text-sm text-zinc-600">
           開始日時
           <input
