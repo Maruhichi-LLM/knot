@@ -5,6 +5,7 @@ import { getSessionFromCookies } from "@/lib/session";
 import { EventList, type EventDisplay } from "@/components/event-list";
 import { EventForm } from "@/components/event-form";
 import { ROLE_ADMIN } from "@/lib/roles";
+import { ensureModuleEnabled } from "@/lib/modules";
 
 function buildInitialStartsAt(date?: string) {
   if (!date) return undefined;
@@ -54,16 +55,65 @@ async function fetchEventData(groupId: number, memberId: number) {
   };
 }
 
+function CalendarPlaceholder() {
+  return (
+    <div className="min-h-[60vh] rounded-2xl border border-dashed border-zinc-200 bg-white/80 p-8 text-center shadow-sm">
+      <p className="text-sm uppercase tracking-wide text-zinc-500">
+        Knot Calendar
+      </p>
+      <h1 className="mt-3 text-3xl font-semibold text-zinc-900">
+        ここから予定表を結びます
+      </h1>
+      <p className="mt-4 text-sm text-zinc-600">
+        共有カレンダーやメンバー連携のビューを今後追加予定です。
+      </p>
+    </div>
+  );
+}
+
 export default async function EventsPage({
   searchParams,
 }: {
-  searchParams: { date?: string };
+  searchParams: { date?: string; module?: string };
 }) {
   const session = await getSessionFromCookies();
   if (!session) {
     redirect("/join");
   }
 
+  if (searchParams?.module === "calendar") {
+    await ensureModuleEnabled(session.groupId, "calendar");
+    const group = await prisma.group.findUnique({
+      where: { id: session.groupId },
+      select: { name: true },
+    });
+    return (
+      <div className="min-h-screen bg-zinc-50 px-4 py-10">
+        <div className="mx-auto flex max-w-4xl flex-col gap-8">
+          <header className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <p className="text-sm uppercase tracking-wide text-zinc-500">
+              Knot Calendar
+            </p>
+            <h1 className="text-3xl font-semibold text-zinc-900">
+              {group?.name ?? ""}
+            </h1>
+            <p className="mt-2 text-sm text-zinc-600">
+              カレンダー専用ビューは今後追加予定です。
+            </p>
+            <Link
+              href="/home"
+              className="mt-4 inline-flex text-sm text-sky-600 underline"
+            >
+              ← ホームへ戻る
+            </Link>
+          </header>
+          <CalendarPlaceholder />
+        </div>
+      </div>
+    );
+  }
+
+  await ensureModuleEnabled(session.groupId, "event");
   const data = await fetchEventData(session.groupId, session.memberId);
   if (!data.group) {
     redirect("/join");
@@ -76,7 +126,7 @@ export default async function EventsPage({
       <div className="mx-auto flex max-w-4xl flex-col gap-8">
         <header className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
           <p className="text-sm uppercase tracking-wide text-zinc-500">
-            イベント / 出欠
+            Knot Event
           </p>
           <h1 className="text-3xl font-semibold text-zinc-900">
             {data.group.name}

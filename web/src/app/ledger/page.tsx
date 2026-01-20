@@ -6,6 +6,7 @@ import { LedgerList, type LedgerDisplay } from "@/components/ledger-list";
 import { LedgerCreateForm } from "@/components/ledger-create-form";
 import { revalidatePath } from "next/cache";
 import { ROLE_ADMIN } from "@/lib/roles";
+import { ensureModuleEnabled } from "@/lib/modules";
 
 const MONTH_VALUES = Array.from({ length: 12 }, (_, index) => index + 1);
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
@@ -270,6 +271,8 @@ export default async function LedgerPage() {
     redirect("/join");
   }
 
+  await ensureModuleEnabled(session.groupId, "accounting");
+
   const data = await fetchLedgerData(session.groupId, session.memberId);
   if (!data.group) {
     redirect("/join");
@@ -298,7 +301,9 @@ export default async function LedgerPage() {
     <div className="min-h-screen bg-zinc-50 px-4 py-10">
       <div className="mx-auto flex max-w-4xl flex-col gap-8">
         <header className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <p className="text-sm uppercase tracking-wide text-zinc-500">会計</p>
+          <p className="text-sm uppercase tracking-wide text-zinc-500">
+            Knot Accounting
+          </p>
           <h1 className="text-3xl font-semibold text-zinc-900">
             {data.group.name}
           </h1>

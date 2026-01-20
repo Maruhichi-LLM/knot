@@ -24,6 +24,7 @@ async function main() {
     data: {
       name: 'Demo Group',
       fiscalYearStartMonth: 4,
+      enabledModules: ['event', 'accounting'],
     },
   });
 

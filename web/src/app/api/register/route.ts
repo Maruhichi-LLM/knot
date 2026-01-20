@@ -56,6 +56,7 @@ export async function POST(request: Request) {
     data: {
       name,
       fiscalYearStartMonth,
+      enabledModules: ["event", "accounting"],
     },
   });
 
