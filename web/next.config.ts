@@ -6,14 +6,6 @@ const nextConfig: NextConfig = {
       allowedOrigins: ["localhost:3000"],
     },
   },
-  async rewrites() {
-    return [
-      {
-        source: "/calendar",
-        destination: "/home",
-      },
-    ];
-  },
 };
 
 export default nextConfig;
