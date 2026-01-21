@@ -1,13 +1,15 @@
-const {
+import {
   PrismaClient,
   AccountType,
   FinancialAccountType,
-} = require('@prisma/client');
-const bcrypt = require('bcryptjs');
+} from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  await prisma.chatMessage.deleteMany();
+  await prisma.chatThread.deleteMany();
   await prisma.attendance.deleteMany();
   await prisma.event.deleteMany();
   await prisma.approval.deleteMany();
@@ -24,7 +26,15 @@ async function main() {
     data: {
       name: 'Demo Group',
       fiscalYearStartMonth: 4,
-      enabledModules: ['event', 'calendar', 'accounting', 'management', 'chat', 'todo', 'store'],
+      enabledModules: [
+        "event",
+        "calendar",
+        "accounting",
+        "management",
+        "chat",
+        "todo",
+        "store",
+      ],
     },
   });
 
@@ -39,15 +49,15 @@ async function main() {
     },
   });
 
-  const adminPasswordHash = await bcrypt.hash('password123', 10);
-  const accountantPasswordHash = await bcrypt.hash('password123', 10);
+  const adminPasswordHash = await bcrypt.hash("password123", 10);
+  const accountantPasswordHash = await bcrypt.hash("password123", 10);
 
   const owner = await prisma.member.create({
     data: {
       groupId: group.id,
       displayName: 'Demo Owner',
-      role: '管理者',
-      email: 'demo-admin@example.com',
+        role: "管理者",
+        email: "demo-admin@example.com",
       passwordHash: adminPasswordHash,
     },
   });
@@ -56,8 +66,8 @@ async function main() {
     data: {
       groupId: group.id,
       displayName: 'Demo Accountant',
-      role: '会計係',
-      email: 'demo-accountant@example.com',
+        role: "会計係",
+        email: "demo-accountant@example.com",
       passwordHash: accountantPasswordHash,
     },
   });
@@ -156,17 +166,17 @@ async function main() {
     data: [
       {
         groupId: group.id,
-        name: '現金',
+        name: "現金",
         type: FinancialAccountType.CASH,
         initialBalance: 20000,
         currentBalance: 20000,
       },
       {
         groupId: group.id,
-        name: 'ゆうちょ銀行',
+        name: "ゆうちょ銀行",
         type: FinancialAccountType.BANK,
-        bankName: 'ゆうちょ銀行',
-        accountNumber: '1234567',
+        bankName: "ゆうちょ銀行",
+        accountNumber: "1234567",
         initialBalance: 80000,
         currentBalance: 80000,
       },
@@ -177,14 +187,14 @@ async function main() {
     data: [
       {
         groupId: group.id,
-        code: 'DEMO1234',
-        role: 'メンバー',
+        code: "DEMO1234",
+        role: "メンバー",
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
       {
         groupId: group.id,
-        code: 'ACCT1234',
-        role: '会計係',
+        code: "ACCT1234",
+        role: "会計係",
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     ],
@@ -194,20 +204,20 @@ async function main() {
     data: {
       groupId: group.id,
       createdByMemberId: accountant.id,
-      title: 'イベント備品購入',
+      title: "イベント備品購入",
       amount: 12000,
       receiptUrl: 'https://example.com/receipt/demo',
       notes: 'ボールとビブス',
-      status: 'PENDING',
+      status: "PENDING",
     },
   });
 
   const event = await prisma.event.create({
     data: {
       groupId: group.id,
-      title: '4月定例会',
-      description: '年間予定と役割分担を行います。',
-      location: '市民センター 第1会議室',
+      title: "4月定例会",
+      description: "年間予定と役割分担を行います。",
+      location: "市民センター 第1会議室",
       startsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
   });
@@ -216,8 +226,8 @@ async function main() {
     data: {
       eventId: event.id,
       memberId: owner.id,
-      status: 'YES',
-      comment: '参加します。',
+      status: "YES",
+      comment: "参加します。",
     },
   });
 
@@ -225,17 +235,42 @@ async function main() {
     data: {
       eventId: event.id,
       memberId: accountant.id,
-      status: 'MAYBE',
-      comment: '日程調整中です。',
+      status: "MAYBE",
+      comment: "日程調整中です。",
     },
   });
 
-  console.log('Seed completed:', {
+  const chatThread = await prisma.chatThread.create({
+    data: {
+      groupId: group.id,
+      scopeType: "ORG",
+    },
+  });
+
+  await prisma.chatMessage.createMany({
+    data: [
+      {
+        threadId: chatThread.id,
+        groupId: group.id,
+        authorId: owner.id,
+        body: "ようこそ Knot Chat へ。ここから次のアクションを決めていきましょう。",
+      },
+      {
+        threadId: chatThread.id,
+        groupId: group.id,
+        authorId: accountant.id,
+        body: "まずは次回イベントの準備タスクを整理します。",
+      },
+    ],
+  });
+
+  console.log("Seed completed:", {
     group,
     accountingSetting,
     owner,
     accountant,
     event,
+    chatThread,
   });
 }
 
