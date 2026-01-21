@@ -21,6 +21,7 @@ model Group {
   financialAccounts    FinancialAccount[]
   budgets              Budget[]
   enabledModules       String[]     @default([])
+  documents            Document[]
 }
 
 model Member {
@@ -37,6 +38,8 @@ model Member {
   approvals         Approval[]   @relation("ApprovalActor")
   attendances       Attendance[]
   personalEvents    PersonalEvent[]
+  documents         Document[]
+  documentVersions  DocumentVersion[]
 }
 
 model InviteCode {
@@ -91,6 +94,7 @@ model Event {
   attendances Attendance[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+  documents   Document[]
 }
 
 model Attendance {
@@ -148,6 +152,43 @@ model AccountingSetting {
   budgetEnabled        Boolean  @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+}
+
+model Document {
+  id                Int              @id @default(autoincrement())
+  groupId           Int
+  group             Group            @relation(fields: [groupId], references: [id])
+  title             String
+  category          DocumentCategory
+  fiscalYear        Int
+  eventId           Int?
+  event             Event?           @relation(fields: [eventId], references: [id])
+  createdByMemberId Int
+  createdBy         Member           @relation(fields: [createdByMemberId], references: [id])
+  versions          DocumentVersion[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+model DocumentVersion {
+  id                Int      @id @default(autoincrement())
+  documentId        Int
+  document          Document @relation(fields: [documentId], references: [id])
+  versionNumber     Int
+  originalFilename  String
+  storedPath        String
+  mimeType          String
+  sizeBytes         Int
+  createdByMemberId Int
+  createdBy         Member   @relation(fields: [createdByMemberId], references: [id])
+  createdAt         DateTime @default(now())
+}
+
+enum DocumentCategory {
+  POLICY
+  REPORT
+  FINANCE
+  OTHER
 }
 
 model Account {

@@ -12,6 +12,16 @@ function assertAdminEmailConfigured() {
   return ADMIN_EMAIL;
 }
 
+export function isPlatformAdminEmail(email?: string | null) {
+  if (!ADMIN_EMAIL) {
+    return false;
+  }
+  if (!email) {
+    return false;
+  }
+  return email.trim().toLowerCase() === ADMIN_EMAIL;
+}
+
 export async function requirePlatformAdmin() {
   const session = await getSessionFromCookies();
   if (!session) {

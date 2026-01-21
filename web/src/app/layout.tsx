@@ -58,6 +58,12 @@ export default async function RootLayout({
                     {module.label}
                   </Link>
                 ))}
+                <Link
+                  href="/documents"
+                  className="rounded-full px-3 py-1 transition hover:bg-zinc-100"
+                >
+                  Knot Documents
+                </Link>
               </nav>
               {session ? (
                 <LogoutButton />
