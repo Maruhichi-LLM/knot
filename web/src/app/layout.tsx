@@ -36,6 +36,15 @@ export default async function RootLayout({
     });
     enabledModules = filterEnabledModules(group?.enabledModules);
   }
+  const primaryKeys: ModuleKey[] = ["event", "calendar", "accounting"];
+  const primaryModules = primaryKeys
+    .map((key) => enabledModules.find((module) => module.key === key))
+    .filter(
+      (module): module is (typeof enabledModules)[number] => Boolean(module)
+    );
+  const remainingModules = enabledModules.filter(
+    (module) => !primaryKeys.includes(module.key as ModuleKey)
+  );
 
   return (
     <html lang="en">
@@ -49,7 +58,7 @@ export default async function RootLayout({
                 Knot
               </Link>
               <nav className="flex flex-wrap items-center gap-4 text-sm font-medium text-zinc-600">
-                {enabledModules.map((module) => (
+                {primaryModules.map((module) => (
                   <Link
                     key={module.key}
                     href={module.href}
@@ -62,8 +71,17 @@ export default async function RootLayout({
                   href="/documents"
                   className="rounded-full px-3 py-1 transition hover:bg-zinc-100"
                 >
-                  Knot Documents
+                  Knot Document
                 </Link>
+                {remainingModules.map((module) => (
+                  <Link
+                    key={module.key}
+                    href={module.href}
+                    className="rounded-full px-3 py-1 transition hover:bg-zinc-100"
+                  >
+                    {module.label}
+                  </Link>
+                ))}
               </nav>
               {session ? (
                 <LogoutButton />

@@ -4,8 +4,8 @@ import { KNOT_HOME_PATH } from "./routes";
 
 export const MODULE_LINKS = [
   { key: "event", label: "Knot Event", href: "/events" },
-  { key: "accounting", label: "Knot Accounting", href: "/ledger" },
   { key: "calendar", label: "Knot Calendar", href: "/calendar" },
+  { key: "accounting", label: "Knot Accounting", href: "/ledger" },
   { key: "management", label: "Knot Management", href: "/management" },
 ] as const;
 

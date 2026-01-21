@@ -21,6 +21,12 @@ const MODULE_DESCRIPTIONS: Record<ModuleKey, string> = {
   management: "招待や機能ON/OFF、収支内訳書・予算設定を管理。",
 };
 
+const DOCUMENT_CARD = {
+  label: "Knot Document",
+  description: "団体の確定版ドキュメントを保管し、年度の引き継ぎをシンプルに。",
+  href: "/documents",
+};
+
 export default async function RootPage() {
   const session = await getSessionFromCookies();
   let enabled = MODULE_LINKS.map((module) => module.key);
@@ -115,6 +121,34 @@ export default async function RootPage() {
               </div>
             );
           })}
+          <div className="flex h-full flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-sky-600">
+                {DOCUMENT_CARD.label}
+                <span className="ml-2 text-[0.65rem] text-zinc-400">
+                  ALWAYS AVAILABLE
+                </span>
+              </p>
+              <h3 className="mt-2 text-2xl font-semibold text-zinc-900">
+                {DOCUMENT_CARD.label}
+              </h3>
+              <p className="mt-3 text-sm text-zinc-600">
+                {DOCUMENT_CARD.description}
+              </p>
+            </div>
+            <div className="mt-6">
+              <Link
+                href={session ? DOCUMENT_CARD.href : "/join"}
+                className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold ${
+                  session
+                    ? "bg-sky-600 text-white hover:bg-sky-700"
+                    : "bg-zinc-100 text-zinc-500"
+                }`}
+              >
+                {session ? "開く" : "Knot へ参加"}
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
