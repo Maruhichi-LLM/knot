@@ -5,13 +5,20 @@ import { getSessionFromCookies } from "@/lib/session";
 import { ensureModuleEnabled } from "@/lib/modules";
 import { ensureOrgChatThread } from "@/lib/chat";
 import { ChatInput } from "@/components/chat-input";
+import { ChatMessageActions } from "@/components/chat-message-actions";
 
 const formatter = new Intl.DateTimeFormat("ja-JP", {
   dateStyle: "short",
   timeStyle: "short",
 });
 
-export default async function ChatPage() {
+type ChatPageProps = {
+  searchParams?: {
+    message?: string;
+  };
+};
+
+export default async function ChatPage({ searchParams }: ChatPageProps) {
   const session = await getSessionFromCookies();
   if (!session) {
     redirect("/join");
@@ -25,9 +32,13 @@ export default async function ChatPage() {
       author: {
         select: { id: true, displayName: true },
       },
+      todoItems: { select: { id: true } },
+      ledgerEntries: { select: { id: true } },
+      documents: { select: { id: true } },
     },
     orderBy: { createdAt: "asc" },
   });
+  const focusedMessageId = Number(searchParams?.message ?? "");
 
   return (
     <div className="min-h-screen py-10">
@@ -67,7 +78,12 @@ export default async function ChatPage() {
                 messages.map((message) => (
                   <article
                     key={message.id}
-                    className="rounded-xl border border-zinc-100 bg-white px-4 py-3 shadow-sm"
+                    id={`message-${message.id}`}
+                    className={`rounded-xl border px-4 py-3 shadow-sm ${
+                      focusedMessageId === message.id
+                        ? "border-sky-200 bg-sky-50"
+                        : "border-zinc-100 bg-white"
+                    }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
                       <span className="font-semibold text-zinc-700">
@@ -80,6 +96,16 @@ export default async function ChatPage() {
                     <p className="mt-2 whitespace-pre-line text-sm text-zinc-800">
                       {message.body}
                     </p>
+                    <div className="mt-3 flex justify-end">
+                      <ChatMessageActions
+                        messageId={message.id}
+                        convertedTargets={{
+                          todo: message.todoItems.length > 0,
+                          accounting: message.ledgerEntries.length > 0,
+                          document: message.documents.length > 0,
+                        }}
+                      />
+                    </div>
                   </article>
                 ))
               )}

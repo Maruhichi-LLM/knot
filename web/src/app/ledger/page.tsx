@@ -150,6 +150,7 @@ async function fetchLedgerData(groupId: number, memberId: number) {
     ledgers: ledgers.map((ledger) => ({
       ...ledger,
       createdAt: ledger.createdAt.toISOString(),
+       sourceChatMessageId: ledger.sourceChatMessageId,
       approvals: ledger.approvals.map((approval) => ({
         ...approval,
         createdAt: approval.createdAt.toISOString(),

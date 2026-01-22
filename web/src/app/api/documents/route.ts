@@ -4,18 +4,9 @@ import { getSessionFromCookies } from "@/lib/session";
 import { isPlatformAdminEmail } from "@/lib/admin";
 import { DocumentCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import path from "node:path";
-import fs from "node:fs/promises";
+import { saveUploadedDocumentFile } from "@/lib/document-storage";
 
 const DOCUMENT_CATEGORIES = Object.values(DocumentCategory);
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
-
-function getStorageBaseDir() {
-  const base =
-    process.env.DOCUMENT_STORAGE_DIR ??
-    path.join(process.cwd(), ".data", "documents");
-  return base;
-}
 
 async function loadRequester(sessionGroupId: number, memberId: number) {
   const member = await prisma.member.findUnique({
@@ -36,27 +27,6 @@ function parseCategory(value: FormDataEntryValue | null) {
   return DOCUMENT_CATEGORIES.includes(upper as DocumentCategory)
     ? (upper as DocumentCategory)
     : null;
-}
-
-async function saveUploadedFile(
-  groupId: number,
-  documentId: number,
-  versionId: number,
-  file: File
-) {
-  const buffer = Buffer.from(await file.arrayBuffer());
-  if (buffer.byteLength > MAX_FILE_SIZE) {
-    throw new Error("ファイルサイズは20MB以下にしてください。");
-  }
-  const relativePath = path.join(
-    String(groupId),
-    String(documentId),
-    String(versionId)
-  );
-  const absolutePath = path.join(getStorageBaseDir(), relativePath);
-  await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-  await fs.writeFile(absolutePath, buffer);
-  return relativePath;
 }
 
 export async function GET(request: Request) {
@@ -209,7 +179,7 @@ export async function POST(request: Request) {
         createdByMemberId: session.memberId,
       },
     });
-    const storedPath = await saveUploadedFile(
+    const storedPath = await saveUploadedDocumentFile(
       document.groupId,
       document.id,
       version.id,

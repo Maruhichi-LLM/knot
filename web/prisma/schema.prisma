@@ -15,6 +15,7 @@ model Group {
   members              Member[]
   chatThreads          ChatThread[]
   chatMessages         ChatMessage[]
+  todoItems            TodoItem[]
   inviteCodes          InviteCode[]
   ledgers              Ledger[]
   events               Event[]
@@ -43,6 +44,8 @@ model Member {
   documents         Document[]
   documentVersions  DocumentVersion[]
   chatMessages      ChatMessage[]
+  todoItemsCreated  TodoItem[]   @relation("TodoCreatedBy")
+  todoItemsAssigned TodoItem[]   @relation("TodoAssignedTo")
 }
 
 model InviteCode {
@@ -72,6 +75,8 @@ model Ledger {
   approvals         Approval[]
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
+  sourceChatMessageId Int?        @unique
+  sourceChatMessage  ChatMessage? @relation("LedgerSourceChat", fields: [sourceChatMessageId], references: [id])
 }
 
 model Approval {
@@ -115,6 +120,7 @@ model Attendance {
 }
 
 enum LedgerStatus {
+  DRAFT
   PENDING
   APPROVED
   REJECTED
@@ -171,6 +177,8 @@ model Document {
   versions          DocumentVersion[]
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
+  sourceChatMessageId Int?           @unique
+  sourceChatMessage  ChatMessage?    @relation("DocumentSourceChat", fields: [sourceChatMessageId], references: [id])
 }
 
 model DocumentVersion {
@@ -191,6 +199,7 @@ enum DocumentCategory {
   POLICY
   REPORT
   FINANCE
+  MEETING_NOTE
   OTHER
 }
 
@@ -215,6 +224,33 @@ model ChatMessage {
   body      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  todoItems TodoItem[]
+  ledgerEntries Ledger[] @relation("LedgerSourceChat")
+  documents Document[]   @relation("DocumentSourceChat")
+}
+
+model TodoItem {
+  id                   Int        @id @default(autoincrement())
+  groupId              Int
+  group                Group      @relation(fields: [groupId], references: [id])
+  createdByMemberId    Int
+  createdBy            Member     @relation("TodoCreatedBy", fields: [createdByMemberId], references: [id])
+  assignedMemberId     Int?
+  assignedTo           Member?    @relation("TodoAssignedTo", fields: [assignedMemberId], references: [id])
+  title                String
+  body                 String?
+  status               TodoStatus @default(TODO)
+  dueDate              DateTime?
+  sourceChatMessageId  Int?       @unique
+  sourceChatMessage    ChatMessage? @relation(fields: [sourceChatMessageId], references: [id])
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+}
+
+enum TodoStatus {
+  TODO
+  IN_PROGRESS
+  DONE
 }
 
 model Account {

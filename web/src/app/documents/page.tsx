@@ -9,6 +9,7 @@ const CATEGORY_LABELS: Record<DocumentCategory, string> = {
   POLICY: "規程・方針",
   REPORT: "報告書",
   FINANCE: "会計関連",
+  MEETING_NOTE: "議事録 / メモ",
   OTHER: "その他",
 };
 
@@ -171,7 +172,7 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
                         })}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex flex-wrap justify-end gap-2">
                           <Link
                             href={`/documents/${doc.id}`}
                             className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-semibold text-zinc-700 hover:border-sky-500 hover:text-sky-600"
@@ -184,6 +185,14 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
                               className="rounded-full bg-sky-600 px-3 py-1 text-xs font-semibold text-white hover:bg-sky-700"
                             >
                               最新版DL
+                            </Link>
+                          ) : null}
+                          {doc.sourceChatMessageId ? (
+                            <Link
+                              href={`/chat?message=${doc.sourceChatMessageId}`}
+                              className="rounded-full border border-dashed border-zinc-300 px-3 py-1 text-xs font-semibold text-zinc-600 hover:border-sky-400"
+                            >
+                              元チャット
                             </Link>
                           ) : null}
                         </div>

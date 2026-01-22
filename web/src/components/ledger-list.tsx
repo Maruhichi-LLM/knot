@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -18,10 +19,11 @@ export type LedgerDisplay = {
   id: number;
   title: string;
   amount: number;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
   receiptUrl?: string | null;
   notes?: string | null;
   createdAt: string;
+  sourceChatMessageId?: number | null;
   createdBy: {
     id: number;
     displayName: string;
@@ -73,6 +75,8 @@ export function LedgerList({ ledgers, canApprove }: Props) {
                     ? "text-green-600"
                     : ledger.status === "REJECTED"
                     ? "text-red-600"
+                    : ledger.status === "DRAFT"
+                    ? "text-zinc-500"
                     : "text-amber-600"
                 }`}
               >
@@ -98,6 +102,16 @@ export function LedgerList({ ledgers, canApprove }: Props) {
           ) : null}
           {ledger.notes ? (
             <p className="mt-2 text-sm text-zinc-600">メモ: {ledger.notes}</p>
+          ) : null}
+          {ledger.sourceChatMessageId ? (
+            <div className="mt-2 text-sm">
+              <Link
+                href={`/chat?message=${ledger.sourceChatMessageId}`}
+                className="text-sky-600 underline"
+              >
+                元のチャットに移動
+              </Link>
+            </div>
           ) : null}
 
           {ledger.status === "PENDING" && canApprove ? (
@@ -136,6 +150,8 @@ function statusLabel(status: LedgerDisplay["status"]) {
       return "承認済み";
     case "REJECTED":
       return "却下";
+    case "DRAFT":
+      return "下書き";
     default:
       return "承認待ち";
   }

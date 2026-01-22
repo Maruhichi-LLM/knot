@@ -9,6 +9,7 @@ const CATEGORY_LABELS: Record<DocumentCategory, string> = {
   POLICY: "規程・方針",
   REPORT: "報告書",
   FINANCE: "会計関連",
+  MEETING_NOTE: "議事録 / メモ",
   OTHER: "その他",
 };
 
@@ -77,6 +78,14 @@ export default async function DocumentDetailPage({ params }: DocumentDetailProps
             <span>団体: {document.group.name}</span>
             {document.event ? (
               <span>関連イベント: {document.event.title}</span>
+            ) : null}
+            {document.sourceChatMessageId ? (
+              <Link
+                href={`/chat?message=${document.sourceChatMessageId}`}
+                className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-semibold text-sky-600"
+              >
+                元のチャットを見る
+              </Link>
             ) : null}
           </div>
         </div>

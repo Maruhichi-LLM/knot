@@ -5,36 +5,10 @@ import { isPlatformAdminEmail } from "@/lib/admin";
 import { revalidatePath } from "next/cache";
 import path from "node:path";
 import fs from "node:fs/promises";
-
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
-
-function getStorageBaseDir() {
-  return (
-    process.env.DOCUMENT_STORAGE_DIR ??
-    path.join(process.cwd(), ".data", "documents")
-  );
-}
-
-async function saveUploadedFile(
-  groupId: number,
-  documentId: number,
-  versionId: number,
-  file: File
-) {
-  const buffer = Buffer.from(await file.arrayBuffer());
-  if (buffer.byteLength > MAX_FILE_SIZE) {
-    throw new Error("ファイルサイズは20MB以下にしてください。");
-  }
-  const relativePath = path.join(
-    String(groupId),
-    String(documentId),
-    String(versionId)
-  );
-  const absolutePath = path.join(getStorageBaseDir(), relativePath);
-  await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-  await fs.writeFile(absolutePath, buffer);
-  return relativePath;
-}
+import {
+  getDocumentStorageBaseDir,
+  saveUploadedDocumentFile,
+} from "@/lib/document-storage";
 
 async function loadDocument(docId: number) {
   return prisma.document.findUnique({
@@ -108,7 +82,10 @@ export async function GET(
     if (!version) {
       return NextResponse.json({ error: "Version not found" }, { status: 404 });
     }
-    const absolutePath = path.join(getStorageBaseDir(), version.storedPath);
+    const absolutePath = path.join(
+      getDocumentStorageBaseDir(),
+      version.storedPath
+    );
     try {
       const data = await fs.readFile(absolutePath);
       return new NextResponse(data, {
@@ -191,7 +168,7 @@ export async function POST(
         createdByMemberId: session.memberId,
       },
     });
-    const storedPath = await saveUploadedFile(
+    const storedPath = await saveUploadedDocumentFile(
       document.groupId,
       document.id,
       version.id,
