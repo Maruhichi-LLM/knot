@@ -48,13 +48,34 @@ export default async function RootLayout({
     ...module,
     enabled: enabledSet.has(module.key as ModuleKey),
   }));
-  const primaryKeys: ModuleKey[] = ["event", "calendar", "accounting"];
-  const primaryModules = moduleStates.filter((module) =>
-    primaryKeys.includes(module.key as ModuleKey)
-  );
-  const remainingModules = moduleStates.filter(
-    (module) => !primaryKeys.includes(module.key as ModuleKey)
-  );
+  const moduleMap = new Map(moduleStates.map((module) => [module.key, module]));
+  const navOrder: Array<ModuleKey | "document"> = [
+    "chat",
+    "todo",
+    "event",
+    "calendar",
+    "accounting",
+    "document",
+    "management",
+    "store",
+  ];
+  const navItems = navOrder
+    .map((key) => {
+      if (key === "document") {
+        return {
+          key,
+          label: "Knot Document",
+          href: "/documents",
+          enabled: true,
+        };
+      }
+      const module = moduleMap.get(key);
+      if (!module) return null;
+      return module;
+    })
+    .filter((item): item is { key: string; label: string; href: string; enabled: boolean } =>
+      Boolean(item)
+    );
 
   return (
     <html lang="en">
@@ -69,49 +90,23 @@ export default async function RootLayout({
                 Knot
               </Link>
               <nav className="flex flex-shrink overflow-x-auto whitespace-nowrap gap-4 text-sm font-medium text-zinc-600">
-                {primaryModules.map((module) =>
-                  module.enabled ? (
+                {navItems.map((item) =>
+                  item.enabled ? (
                     <Link
-                      key={module.key}
-                      href={module.href}
+                      key={item.key}
+                      href={item.href}
                       className="rounded-full px-3 py-1 transition hover:bg-zinc-100"
                     >
-                      {module.label}
+                      {item.label}
                     </Link>
                   ) : (
                     <span
-                      key={module.key}
+                      key={item.key}
                       className="rounded-full px-3 py-1 text-zinc-400"
                       aria-disabled="true"
                       title="無効化中のモジュールです"
                     >
-                      {module.label}
-                    </span>
-                  )
-                )}
-                <Link
-                  href="/documents"
-                  className="rounded-full px-3 py-1 transition hover:bg-zinc-100"
-                >
-                  Knot Document
-                </Link>
-                {remainingModules.map((module) =>
-                  module.enabled ? (
-                    <Link
-                      key={module.key}
-                      href={module.href}
-                      className="rounded-full px-3 py-1 transition hover:bg-zinc-100"
-                    >
-                      {module.label}
-                    </Link>
-                  ) : (
-                    <span
-                      key={module.key}
-                      className="rounded-full px-3 py-1 text-zinc-400"
-                      aria-disabled="true"
-                      title="無効化中のモジュールです"
-                    >
-                      {module.label}
+                      {item.label}
                     </span>
                   )
                 )}
