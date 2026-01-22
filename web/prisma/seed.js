@@ -9,6 +9,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   await prisma.todoItem.deleteMany();
+  await prisma.todoItem.deleteMany();
   await prisma.chatMessage.deleteMany();
   await prisma.chatThread.deleteMany();
   await prisma.attendance.deleteMany();
@@ -19,6 +20,8 @@ async function main() {
   await prisma.financialAccount.deleteMany();
   await prisma.account.deleteMany();
   await prisma.accountingSetting.deleteMany();
+  await prisma.documentVersion.deleteMany();
+  await prisma.document.deleteMany();
   await prisma.inviteCode.deleteMany();
   await prisma.member.deleteMany();
   await prisma.group.deleteMany();

@@ -152,7 +152,7 @@ function formatDateParam(date: Date) {
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: { addDate?: string };
+  searchParams?: Promise<{ addDate?: string }>;
 }) {
   const session = await getSessionFromCookies();
   if (!session) {
@@ -176,7 +176,8 @@ export default async function CalendarPage({
     ...personalEvents.map((event) => ({ ...event, calendar: "personal" as const })),
   ];
   const days = buildCalendar(now, combinedEvents);
-  const addDateParam = searchParams?.addDate;
+  const resolvedParams = (await searchParams) ?? {};
+  const addDateParam = resolvedParams.addDate;
   const addDate = addDateParam
     ? new Date(addDateParam)
     : null;

@@ -24,21 +24,40 @@ function resolveFiscalYear(date: Date, startMonth: number) {
   return month >= startMonth ? year : year - 1;
 }
 
+function parseMessageIdParam(param: string | string[] | undefined) {
+  if (Array.isArray(param)) {
+    param = param[0];
+  }
+  if (!param) {
+    return null;
+  }
+  const match = String(param).match(/\d+/);
+  if (!match) {
+    return null;
+  }
+  const id = Number.parseInt(match[0], 10);
+  return Number.isNaN(id) ? null : id;
+}
+
 export async function POST(
   request: NextRequest,
-  { params }: { params: { messageId: string } }
+  context: { params: Promise<{ messageId: string }> }
 ) {
   const session = await getSessionFromCookies();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const messageId = Number(params.messageId);
-  if (!Number.isInteger(messageId)) {
-    return NextResponse.json({ error: "Invalid message id" }, { status: 400 });
-  }
   const payload = (await request.json().catch(() => ({}))) as {
     target?: ConversionTarget;
+    messageId?: number;
   };
+  const { messageId: rawMessageId } = await context.params;
+  const messageId =
+    parseMessageIdParam(rawMessageId) ??
+    (Number.isInteger(payload.messageId) ? Number(payload.messageId) : null);
+  if (messageId === null) {
+    return NextResponse.json({ error: "Invalid message id" }, { status: 400 });
+  }
   if (!payload.target || !["todo", "accounting", "document"].includes(payload.target)) {
     return NextResponse.json({ error: "Invalid conversion target" }, { status: 400 });
   }

@@ -14,10 +14,10 @@ const CATEGORY_LABELS: Record<DocumentCategory, string> = {
 };
 
 type DocumentsPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     fiscalYear?: string;
     category?: string;
-  };
+  }>;
 };
 
 export default async function DocumentsPage({ searchParams }: DocumentsPageProps) {
@@ -30,8 +30,9 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
     select: { email: true },
   });
   const isAdmin = isPlatformAdminEmail(member?.email ?? null);
-  const fiscalYearParam = Number(searchParams?.fiscalYear ?? "");
-  const categoryParam = searchParams?.category;
+  const resolvedParams = (await searchParams) ?? {};
+  const fiscalYearParam = Number(resolvedParams.fiscalYear ?? "");
+  const categoryParam = resolvedParams.category;
   const where: Record<string, unknown> = {};
   if (!isAdmin) {
     where.groupId = session.groupId;

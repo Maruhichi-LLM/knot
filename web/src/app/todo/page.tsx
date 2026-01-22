@@ -13,9 +13,9 @@ const STATUS_LABELS: Record<TodoStatus, string> = {
 };
 
 type TodoPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     focus?: string;
-  };
+  }>;
 };
 
 async function updateTodoStatusAction(formData: FormData) {
@@ -61,7 +61,8 @@ export default async function TodoPage({ searchParams }: TodoPageProps) {
       assignedTo: { select: { id: true, displayName: true } },
     },
   });
-  const focusId = Number(searchParams?.focus ?? "");
+  const resolvedParams = (await searchParams) ?? {};
+  const focusId = Number(resolvedParams.focus ?? "");
 
   return (
     <div className="min-h-screen py-10">

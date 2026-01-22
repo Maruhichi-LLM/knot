@@ -57,7 +57,7 @@ async function fetchEventData(groupId: number, memberId: number) {
 export default async function EventsPage({
   searchParams,
 }: {
-  searchParams: { date?: string };
+  searchParams?: Promise<{ date?: string }>;
 }) {
   const session = await getSessionFromCookies();
   if (!session) {
@@ -70,7 +70,8 @@ export default async function EventsPage({
     redirect("/join");
   }
   const canEdit = data.member?.role === ROLE_ADMIN;
-  const initialStartsAt = buildInitialStartsAt(searchParams?.date);
+  const resolvedParams = (await searchParams) ?? {};
+  const initialStartsAt = buildInitialStartsAt(resolvedParams.date);
 
   return (
     <div className="min-h-screen py-10">

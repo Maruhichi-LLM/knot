@@ -13,9 +13,9 @@ const formatter = new Intl.DateTimeFormat("ja-JP", {
 });
 
 type ChatPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     message?: string;
-  };
+  }>;
 };
 
 export default async function ChatPage({ searchParams }: ChatPageProps) {
@@ -38,7 +38,8 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     },
     orderBy: { createdAt: "asc" },
   });
-  const focusedMessageId = Number(searchParams?.message ?? "");
+  const resolvedParams = (await searchParams) ?? {};
+  const focusedMessageId = Number(resolvedParams.message ?? "");
 
   return (
     <div className="min-h-screen py-10">

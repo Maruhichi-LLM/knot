@@ -10,8 +10,8 @@ import { revalidatePath } from "next/cache";
 import { ConfirmModuleSubmitButton } from "@/components/confirm-module-submit-button";
 
 type PageProps = {
-  params: { groupId: string };
-  searchParams?: { saved?: string };
+  params: Promise<{ groupId: string }>;
+  searchParams?: Promise<{ saved?: string }>;
 };
 
 const moduleKeys = MODULE_LINKS.map((module) => module.key) as ModuleKey[];
@@ -55,7 +55,8 @@ export default async function GroupDetailPage({
   searchParams,
 }: PageProps) {
   await requirePlatformAdmin();
-  const groupId = Number(params.groupId);
+  const { groupId: rawGroupId } = await params;
+  const groupId = Number(rawGroupId);
   if (!Number.isInteger(groupId)) {
     notFound();
   }
@@ -79,7 +80,8 @@ export default async function GroupDetailPage({
       resolvedModules.includes(module.key),
     ])
   );
-  const saved = searchParams?.saved === "1";
+  const resolvedSearch = (await searchParams) ?? {};
+  const saved = resolvedSearch.saved === "1";
 
   return (
     <div className="min-h-screen bg-transparent py-10">

@@ -59,7 +59,7 @@ export function ChatMessageActions({ messageId, convertedTargets }: Props) {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ target }),
+            body: JSON.stringify({ target, messageId }),
           }
         );
         const data = (await response.json().catch(() => ({}))) as
