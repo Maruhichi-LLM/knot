@@ -6,6 +6,7 @@ import {
   ModuleKey,
   filterEnabledModules,
 } from "@/lib/modules";
+import { MODULE_METADATA } from "@/lib/module-metadata";
 
 const COPY = [
   "Knot is not only for PTA.",
@@ -14,39 +15,16 @@ const COPY = [
   "Knot is where everything connects.",
 ] as const;
 
-const MODULE_DESCRIPTIONS: Record<ModuleKey, string> = {
-  event: "行事の登録とメンバーの出欠を一つに。",
-  accounting: "経費精算と承認フローをシンプルに。",
-  calendar: "行事を月間ビューで共有。",
-  management: "招待と権限、メンバー体制を管理するヒューマンモジュール。",
-  chat: "発言そのものを次の行動へつなげる意思決定ハブ。チャットからToDo・会計・議事録へ直接変換します。",
-  todo: "会話から生まれたタスクを簡潔に管理。誰が・いつまでに・何をやるかを素早く共有します。",
-  store: "団体向けモジュールの追加・有効化・無効化をまとめて管理するモジュールストア（管理者専用）。",
-};
-
-const MODULE_BADGES: Partial<Record<ModuleKey, string>> = {
-  event: "イベント / Planning",
-  calendar: "共有ビュー / Calendar",
-  accounting: "会計 / Finance",
-  chat: "意思決定 / ハブ",
-  todo: "実行 / Action",
-  management: "組織設定 / Governance",
-  store: "モジュール管理 / App Store",
-};
-
-const MODULE_WRAPPER_VARIANTS: Partial<Record<
-  ModuleKey,
-  { border: string; label: string }
->> = {
-  management: {
+const VARIANT_STYLES = {
+  default: {
+    border: "border-zinc-200 bg-white",
+    label: "text-sky-600",
+  },
+  system: {
     border: "border-amber-200 bg-amber-50",
     label: "text-amber-700",
   },
-  store: {
-    border: "border-amber-200 bg-amber-50",
-    label: "text-amber-700",
-  },
-};
+} as const;
 
 const DOCUMENT_CARD = {
   label: "Knot Document",
@@ -158,22 +136,19 @@ export default async function RootPage() {
               }
               const module = moduleMap.get(key);
               if (!module) return null;
+              const metadata = MODULE_METADATA[module.key];
               const isEnabled = enabled.includes(module.key);
+              const variant = metadata?.variant ?? "default";
+              const variantStyles = VARIANT_STYLES[variant];
               const targetHref = session ? module.href : "/join";
               return (
                 <div
                   key={module.key}
-                  className={`rounded-2xl border p-5 shadow-sm flex h-full min-h-[260px] flex-col justify-between ${
-                    MODULE_WRAPPER_VARIANTS[module.key]?.border ??
-                    "border-zinc-200 bg-white"
-                  }`}
+                  className={`rounded-2xl border p-5 shadow-sm flex h-full min-h-[260px] flex-col justify-between ${variantStyles.border}`}
                 >
                   <div>
                     <p
-                      className={`text-xs uppercase tracking-wide ${
-                        MODULE_WRAPPER_VARIANTS[module.key]?.label ??
-                        "text-sky-600"
-                      }`}
+                      className={`text-xs uppercase tracking-wide ${variantStyles.label}`}
                     >
                       {module.label}
                       <span className="ml-2 text-[0.65rem] text-zinc-400">
@@ -184,16 +159,16 @@ export default async function RootPage() {
                           : "PREVIEW"}
                       </span>
                     </p>
-                    {MODULE_BADGES[module.key] ? (
+                    {metadata?.badge ? (
                       <p className="mt-1 text-xs font-semibold text-amber-600">
-                        {MODULE_BADGES[module.key]}
+                        {metadata.badge}
                       </p>
                     ) : null}
                     <h3 className="mt-2 text-xl font-semibold text-zinc-900">
                       {module.label}
                     </h3>
                     <p className="mt-3 text-sm text-zinc-600">
-                      {MODULE_DESCRIPTIONS[module.key]}
+                      {metadata?.description}
                     </p>
                   </div>
                   <div className="mt-6">

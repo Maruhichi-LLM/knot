@@ -9,7 +9,7 @@ export const MODULE_LINKS = [
   { key: "management", label: "Knot Management", href: "/management" },
   { key: "chat", label: "Knot Chat", href: "/chat" },
   { key: "todo", label: "Knot ToDo", href: "/todo" },
-  { key: "store", label: "Knot Store", href: "/?module=store" },
+  { key: "store", label: "Knot Store", href: "/store" },
 ] as const;
 
 export type ModuleKey = (typeof MODULE_LINKS)[number]["key"];

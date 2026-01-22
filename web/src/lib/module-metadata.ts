@@ -1,0 +1,46 @@
+import { ModuleKey } from "./modules";
+
+type ModuleVariant = "default" | "system";
+
+export type ModuleMetadata = {
+  description: string;
+  badge?: string;
+  variant?: ModuleVariant;
+};
+
+export const MODULE_METADATA: Record<ModuleKey, ModuleMetadata> = {
+  event: {
+    description: "行事の登録とメンバーの出欠を一つに。",
+    badge: "イベント / Planning",
+  },
+  calendar: {
+    description: "行事を月間ビューで共有。",
+    badge: "共有ビュー / Calendar",
+  },
+  accounting: {
+    description: "経費精算と承認フローをシンプルに。",
+    badge: "会計 / Finance",
+  },
+  management: {
+    description:
+      "招待や機能ON/OFF、収支内訳書・予算設定を管理するヒューマンモジュール。",
+    badge: "組織設定 / Governance",
+    variant: "system",
+  },
+  chat: {
+    description:
+      "発言そのものを次の行動へつなげる意思決定ハブ。チャットからToDo・会計・議事録へ直接変換します。",
+    badge: "意思決定 / ハブ",
+  },
+  todo: {
+    description:
+      "会話から生まれたタスクを簡潔に管理。誰が・いつまでに・何をやるかを素早く共有します。",
+    badge: "実行 / Action",
+  },
+  store: {
+    description:
+      "団体向けモジュールの追加・有効化・無効化をまとめて管理するモジュールストア（管理者専用）。",
+    badge: "モジュール管理 / App Store",
+    variant: "system",
+  },
+};
