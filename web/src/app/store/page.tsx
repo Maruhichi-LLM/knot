@@ -23,6 +23,7 @@ const STORE_DISPLAY_ORDER: ModuleKey[] = [
   "event",
   "calendar",
   "accounting",
+  "document",
   "management",
   "store",
 ];

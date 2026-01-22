@@ -43,4 +43,9 @@ export const MODULE_METADATA: Record<ModuleKey, ModuleMetadata> = {
     badge: "モジュール管理 / App Store",
     variant: "system",
   },
+  document: {
+    description:
+      "団体の確定版ドキュメントを保管し、年度引き継ぎをシンプルにするモジュールです。",
+    badge: "ドキュメント / Archive",
+  },
 };

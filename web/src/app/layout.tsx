@@ -49,7 +49,7 @@ export default async function RootLayout({
     enabled: enabledSet.has(module.key as ModuleKey),
   }));
   const moduleMap = new Map(moduleStates.map((module) => [module.key, module]));
-  const navOrder: Array<ModuleKey | "document"> = [
+  const navOrder: ModuleKey[] = [
     "chat",
     "todo",
     "event",
@@ -60,21 +60,12 @@ export default async function RootLayout({
     "store",
   ];
   const navItems = navOrder
-    .map((key) => {
-      if (key === "document") {
-        return {
-          key,
-          label: "Knot Document",
-          href: "/documents",
-          enabled: true,
-        };
-      }
-      const module = moduleMap.get(key);
-      if (!module) return null;
-      return module;
-    })
-    .filter((item): item is { key: string; label: string; href: string; enabled: boolean } =>
-      Boolean(item)
+    .map((key) => moduleMap.get(key))
+    .filter(
+      (
+        item
+      ): item is { key: string; label: string; href: string; enabled: boolean } =>
+        Boolean(item)
     );
 
   return (
