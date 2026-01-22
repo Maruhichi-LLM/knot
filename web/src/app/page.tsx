@@ -68,6 +68,18 @@ export default async function RootPage() {
     );
   }
 
+  const moduleMap = new Map(MODULE_LINKS.map((module) => [module.key, module]));
+  const moduleOrder: Array<ModuleKey | "document"> = [
+    "chat",
+    "todo",
+    "event",
+    "calendar",
+    "accounting",
+    "document",
+    "management",
+    "store",
+  ];
+
   return (
     <div className="min-h-screen bg-transparent py-16">
       <div className="page-shell space-y-16 text-center">
@@ -104,14 +116,54 @@ export default async function RootPage() {
               必要なモジュールだけを結ぶ
             </h2>
           </div>
-          <div className="flex w-full gap-5 overflow-x-auto pb-3">
-            {MODULE_LINKS.map((module) => {
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {moduleOrder.map((key) => {
+              if (key === "document") {
+                return (
+                  <div
+                    key="document"
+                    className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm flex h-full min-h-[260px] flex-col justify-between"
+                  >
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-sky-600">
+                        {DOCUMENT_CARD.label}
+                        <span className="ml-2 text-[0.65rem] text-zinc-400">
+                          ALWAYS AVAILABLE
+                        </span>
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-emerald-700">
+                        {DOCUMENT_CARD.badge}
+                      </p>
+                      <h3 className="mt-2 text-xl font-semibold text-zinc-900">
+                        {DOCUMENT_CARD.label}
+                      </h3>
+                      <p className="mt-3 text-sm text-zinc-600">
+                        {DOCUMENT_CARD.description}
+                      </p>
+                    </div>
+                    <div className="mt-6">
+                      <Link
+                        href={session ? DOCUMENT_CARD.href : "/join"}
+                        className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold ${
+                          session
+                            ? "bg-sky-600 text-white hover:bg-sky-700"
+                            : "bg-zinc-100 text-zinc-500"
+                        }`}
+                      >
+                        {session ? "開く" : "Knot へ参加"}
+                      </Link>
+                    </div>
+                  </div>
+                );
+              }
+              const module = moduleMap.get(key);
+              if (!module) return null;
               const isEnabled = enabled.includes(module.key);
               const targetHref = session ? module.href : "/join";
               return (
                 <div
                   key={module.key}
-                  className={`min-w-[300px] flex-1 rounded-2xl border p-5 shadow-sm flex h-full min-h-[260px] flex-col justify-between ${
+                  className={`rounded-2xl border p-5 shadow-sm flex h-full min-h-[260px] flex-col justify-between ${
                     MODULE_WRAPPER_VARIANTS[module.key]?.border ??
                     "border-zinc-200 bg-white"
                   }`}
@@ -159,37 +211,6 @@ export default async function RootPage() {
                 </div>
               );
             })}
-            <div className="min-w-[300px] flex-1 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm flex h-full min-h-[260px] flex-col justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-sky-600">
-                  {DOCUMENT_CARD.label}
-                  <span className="ml-2 text-[0.65rem] text-zinc-400">
-                    ALWAYS AVAILABLE
-                  </span>
-                </p>
-                <p className="mt-1 text-xs font-semibold text-emerald-700">
-                  {DOCUMENT_CARD.badge}
-                </p>
-                <h3 className="mt-2 text-xl font-semibold text-zinc-900">
-                  {DOCUMENT_CARD.label}
-                </h3>
-                <p className="mt-3 text-sm text-zinc-600">
-                  {DOCUMENT_CARD.description}
-                </p>
-              </div>
-              <div className="mt-6">
-                <Link
-                  href={session ? DOCUMENT_CARD.href : "/join"}
-                  className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold ${
-                    session
-                      ? "bg-sky-600 text-white hover:bg-sky-700"
-                      : "bg-zinc-100 text-zinc-500"
-                  }`}
-                >
-                  {session ? "開く" : "Knot へ参加"}
-                </Link>
-              </div>
-            </div>
           </div>
         </section>
       </div>
