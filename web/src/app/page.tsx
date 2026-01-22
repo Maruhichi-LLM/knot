@@ -95,7 +95,8 @@ export default async function RootPage() {
               const isEnabled = enabled.includes(module.key);
               const variant = metadata?.variant ?? "default";
               const variantStyles = VARIANT_STYLES[variant];
-              const targetHref = session ? module.href : "/join";
+              const targetHref =
+                session && isEnabled ? module.href : session ? undefined : "/join";
               return (
                 <div
                   key={module.key}
@@ -127,16 +128,22 @@ export default async function RootPage() {
                     </p>
                   </div>
                   <div className="mt-6">
-                    <Link
-                      href={targetHref}
-                      className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold ${
-                        isEnabled && session
-                          ? "bg-sky-600 text-white hover:bg-sky-700"
-                          : "bg-zinc-100 text-zinc-500"
-                      }`}
-                    >
-                      {isEnabled && session ? "開く" : session ? "無効化中" : "Knot へ参加"}
-                    </Link>
+                    {targetHref ? (
+                      <Link
+                        href={targetHref}
+                        className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold ${
+                          isEnabled && session
+                            ? "bg-sky-600 text-white hover:bg-sky-700"
+                            : "bg-zinc-100 text-zinc-500"
+                        }`}
+                      >
+                        {isEnabled && session ? "開く" : "Knot へ参加"}
+                      </Link>
+                    ) : (
+                      <span className="inline-flex rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-500">
+                        無効化中
+                      </span>
+                    )}
                   </div>
                 </div>
               );
