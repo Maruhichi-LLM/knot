@@ -86,7 +86,7 @@ export async function convertMessageToLedgerDraft(
     return {
       target: "accounting" as const,
       status: "exists" as const,
-      url: `/ledger?focus=${existing.id}`,
+      url: `/accounting?focus=${existing.id}`,
       ledgerId: existing.id,
       threadId: message.threadId,
     };
@@ -108,12 +108,12 @@ export async function convertMessageToLedgerDraft(
       accountId: defaultAccount?.id,
     },
   });
-  revalidatePath("/ledger");
+  revalidatePath("/accounting");
   revalidatePath(`/threads/${message.threadId}`);
   return {
     target: "accounting" as const,
     status: "created" as const,
-    url: "/ledger",
+    url: "/accounting",
     ledgerId: ledger.id,
     threadId: message.threadId,
   };

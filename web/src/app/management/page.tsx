@@ -334,7 +334,7 @@ export default async function ManagementPage() {
               <p className="mt-2 text-sm text-zinc-600">
                 Knot Management では「人」の管理に集中します。会計年度や勘定科目、残高・予算の設定は
                 <Link
-                  href="/ledger"
+                  href="/accounting"
                   className="font-semibold text-sky-600 underline"
                 >
                   Knot Accounting
@@ -360,7 +360,7 @@ export default async function ManagementPage() {
                     会計年度・承認フロー、勘定科目、現金・口座残高、予算管理などの設定をまとめて扱います。
                   </p>
                   <Link
-                    href="/ledger"
+                    href="/accounting"
                     className="mt-3 inline-flex rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700"
                   >
                     Knot Accounting を開く

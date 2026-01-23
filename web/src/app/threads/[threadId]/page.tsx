@@ -229,7 +229,7 @@ function resolveSourceLink(sourceType: ThreadSourceType, sourceId: number | null
     case ThreadSourceType.TODO:
       return `/todo?focus=${sourceId}`;
     case ThreadSourceType.ACCOUNTING:
-      return `/ledger?focus=${sourceId}`;
+      return `/accounting?focus=${sourceId}`;
     case ThreadSourceType.DOCUMENT:
       return `/documents/${sourceId}`;
     case ThreadSourceType.EVENT:

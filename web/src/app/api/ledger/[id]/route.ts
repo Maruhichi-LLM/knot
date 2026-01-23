@@ -73,7 +73,7 @@ export async function PATCH(
     });
   });
 
-  revalidatePath("/ledger");
+  revalidatePath("/accounting");
 
   return NextResponse.json({ success: true, ledger: updatedLedger });
 }

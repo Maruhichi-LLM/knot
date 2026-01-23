@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     },
   });
 
-  revalidatePath("/ledger");
+  revalidatePath("/accounting");
 
   return NextResponse.json({ success: true, ledger });
 }

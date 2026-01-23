@@ -118,7 +118,7 @@ export async function POST(
     },
   });
 
-  revalidatePath("/ledger");
+  revalidatePath("/accounting");
 
   return NextResponse.json({ success: true, ledger: updated });
 }

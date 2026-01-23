@@ -87,7 +87,7 @@ async function saveAccountingSettingsAction(formData: FormData) {
     }),
   ]);
 
-  revalidatePath("/ledger");
+  revalidatePath("/accounting");
   revalidatePath("/management");
 }
 
@@ -119,7 +119,7 @@ async function createAccountAction(formData: FormData) {
     },
   });
 
-  revalidatePath("/ledger");
+  revalidatePath("/accounting");
   revalidatePath("/management");
 }
 
