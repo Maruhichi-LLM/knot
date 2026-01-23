@@ -188,7 +188,18 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
                               最新版DL
                             </Link>
                           ) : null}
-                          {doc.sourceChatMessageId ? (
+                          {doc.sourceThreadId ? (
+                            <Link
+                              href={`/threads/${doc.sourceThreadId}${
+                                doc.sourceChatMessageId
+                                  ? `?message=${doc.sourceChatMessageId}`
+                                  : ""
+                              }`}
+                              className="rounded-full border border-dashed border-zinc-300 px-3 py-1 text-xs font-semibold text-sky-600 hover:border-sky-400"
+                            >
+                              関連Thread
+                            </Link>
+                          ) : doc.sourceChatMessageId ? (
                             <Link
                               href={`/chat?message=${doc.sourceChatMessageId}`}
                               className="rounded-full border border-dashed border-zinc-300 px-3 py-1 text-xs font-semibold text-zinc-600 hover:border-sky-400"

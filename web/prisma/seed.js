@@ -1,8 +1,24 @@
-import {
+import pkg from "@prisma/client";
+const {
   PrismaClient,
   AccountType,
   FinancialAccountType,
-} from "@prisma/client";
+  ThreadSourceType,
+  ThreadStatus,
+} = pkg;
+
+const THREAD_SOURCE = ThreadSourceType ?? {
+  TODO: "TODO",
+  EVENT: "EVENT",
+  ACCOUNTING: "ACCOUNTING",
+  DOCUMENT: "DOCUMENT",
+  FREE: "FREE",
+};
+
+const THREAD_STATUS = ThreadStatus ?? {
+  OPEN: "OPEN",
+  CLOSED: "CLOSED",
+};
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -213,6 +229,7 @@ async function main() {
       receiptUrl: 'https://example.com/receipt/demo',
       notes: 'ボールとビブス',
       status: "PENDING",
+      accountId: accountByName["消耗品費"].id,
     },
   });
 
@@ -247,7 +264,9 @@ async function main() {
   const chatThread = await prisma.chatThread.create({
     data: {
       groupId: group.id,
-      scopeType: "ORG",
+      title: "FREEスレッド",
+      sourceType: THREAD_SOURCE.FREE,
+      status: THREAD_STATUS.OPEN,
     },
   });
 

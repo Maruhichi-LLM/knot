@@ -10,7 +10,7 @@ import {
 } from "@/lib/modules";
 import { getSessionFromCookies } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { LogoutButton } from "@/components/logout-button";
+import { AuthButton } from "@/components/auth-button";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,9 +26,6 @@ export const metadata: Metadata = {
   title: "Knot",
   description: "Knot is where everything connects.",
 };
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 async function fetchLayoutContext() {
   const session = await getSessionFromCookies();
@@ -110,16 +107,7 @@ export default async function RootLayout({
                   )
                 )}
               </nav>
-             {session ? (
-                <LogoutButton />
-              ) : (
-                <Link
-                  href="/login"
-                  className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
-                >
-                  ログイン
-                </Link>
-              )}
+              <AuthButton initialSession={Boolean(session)} />
             </div>
           </header>
           <main>{children}</main>

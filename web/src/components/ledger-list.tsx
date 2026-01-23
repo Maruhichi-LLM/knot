@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { FormEvent, useState } from "react";
+import { ThreadSourceType } from "@prisma/client";
+import { RelatedThreadButton } from "./related-thread-button";
 
 type ApprovalDisplay = {
   id: number;
@@ -24,19 +25,27 @@ export type LedgerDisplay = {
   notes?: string | null;
   createdAt: string;
   sourceChatMessageId?: number | null;
+  sourceThreadId?: number | null;
   createdBy: {
     id: number;
     displayName: string;
   };
   approvals: ApprovalDisplay[];
+  account?: {
+    id: number;
+    name: string;
+    type: string;
+  } | null;
 };
 
 type Props = {
   ledgers: LedgerDisplay[];
   canApprove: boolean;
+  accounts: { id: number; name: string; type: string }[];
+  groupId: number;
 };
 
-export function LedgerList({ ledgers, canApprove }: Props) {
+export function LedgerList({ ledgers, canApprove, accounts, groupId }: Props) {
   if (ledgers.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500">
@@ -100,22 +109,31 @@ export function LedgerList({ ledgers, canApprove }: Props) {
               </a>
             </p>
           ) : null}
+          <p className="mt-2 text-sm text-zinc-600">
+            科目:{" "}
+            {ledger.account ? (
+              <span>{ledger.account.name}</span>
+            ) : (
+              <span className="text-amber-600">未割当（下書き）</span>
+            )}
+          </p>
           {ledger.notes ? (
             <p className="mt-2 text-sm text-zinc-600">メモ: {ledger.notes}</p>
           ) : null}
-          {ledger.sourceChatMessageId ? (
-            <div className="mt-2 text-sm">
-              <Link
-                href={`/chat?message=${ledger.sourceChatMessageId}`}
-                className="text-sky-600 underline"
-              >
-                元のチャットに移動
-              </Link>
-            </div>
-          ) : null}
+          <RelatedThreadButton
+            groupId={groupId}
+            sourceType={ThreadSourceType.ACCOUNTING}
+            sourceId={ledger.id}
+            title={`Accounting: ${ledger.title}`}
+            threadId={ledger.sourceThreadId ?? null}
+            className="mt-3"
+          />
 
           {ledger.status === "PENDING" && canApprove ? (
             <ApprovalActions ledgerId={ledger.id} />
+          ) : null}
+          {ledger.status === "DRAFT" ? (
+            <DraftFinalizeForm ledger={ledger} accounts={accounts} />
           ) : null}
 
           {ledger.approvals.length > 0 ? (
@@ -226,5 +244,141 @@ function ApprovalActions({ ledgerId }: { ledgerId: number }) {
         </button>
       </div>
     </div>
+  );
+}
+
+function DraftFinalizeForm({
+  ledger,
+  accounts,
+}: {
+  ledger: LedgerDisplay;
+  accounts: { id: number; name: string; type: string }[];
+}) {
+  const router = useRouter();
+  const [amount, setAmount] = useState(
+    ledger.amount > 0 ? String(ledger.amount) : ""
+  );
+  const [accountId, setAccountId] = useState(
+    ledger.account?.id ? String(ledger.account.id) : ""
+  );
+  const [receiptUrl, setReceiptUrl] = useState(ledger.receiptUrl ?? "");
+  const [notes, setNotes] = useState(ledger.notes ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const hasAccounts = accounts.length > 0;
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!accountId) {
+      setError("勘定科目を選択してください。");
+      return;
+    }
+    const amountNumber = Number(amount);
+    if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
+      setError("正しい金額を入力してください。");
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/ledger/${ledger.id}/finalize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: amountNumber,
+          accountId: Number(accountId),
+          receiptUrl,
+          notes,
+        }),
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        setError(data.error ?? "送信に失敗しました。");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("通信エラーが発生しました。");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="mt-4 space-y-3 rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-4"
+    >
+      <p className="text-sm text-zinc-600">
+        下書きを正式な申請にするには、確定した金額と勘定科目を入力してください。
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm text-zinc-600">
+          金額（円）
+          <input
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            min={1}
+            required
+            className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+          />
+        </label>
+        <label className="text-sm text-zinc-600">
+          勘定科目
+          <select
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            required
+            disabled={!hasAccounts}
+            className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 disabled:bg-zinc-100"
+          >
+            <option value="">選択してください</option>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <label className="text-sm text-zinc-600">
+        証憑URL（任意）
+        <input
+          value={receiptUrl}
+          onChange={(e) => setReceiptUrl(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+          placeholder="https://example.com/receipt"
+        />
+      </label>
+      <label className="text-sm text-zinc-600">
+        メモ
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+          rows={2}
+        />
+      </label>
+      {error ? (
+        <p className="text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {!hasAccounts ? (
+        <p className="text-sm text-amber-600">
+          勘定科目が登録されていません。管理者に科目追加を依頼してください。
+        </p>
+      ) : null}
+      <button
+        type="submit"
+        disabled={!hasAccounts || isSubmitting}
+        className="w-full rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+      >
+        {isSubmitting ? "申請中..." : "申請に進む"}
+      </button>
+    </form>
   );
 }

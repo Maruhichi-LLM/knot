@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { emitAuthChange } from "@/lib/auth-events";
 
 type Props = {
   heading?: string;
@@ -14,7 +15,7 @@ type Props = {
 export function LoginCard({
   heading = "ログイン",
   showRegisterHint = true,
-  onSuccessHref = "/calendar",
+  onSuccessHref = "/",
   compact = false,
 }: Props) {
   const router = useRouter();
@@ -41,7 +42,9 @@ export function LoginCard({
         setError(data.error ?? "ログインに失敗しました。");
         return;
       }
-      router.push(onSuccessHref);
+      emitAuthChange(true);
+      router.replace(onSuccessHref);
+      router.refresh();
     } catch {
       setError("通信に失敗しました。時間をおいて再度お試しください。");
     } finally {

@@ -135,6 +135,9 @@ async function fetchLedgerData(groupId: number, memberId: number) {
             orderBy: { createdAt: "desc" },
             include: { actedBy: true },
           },
+          account: {
+            select: { id: true, name: true, type: true },
+          },
         },
         orderBy: { createdAt: "desc" },
       }),
@@ -147,14 +150,22 @@ async function fetchLedgerData(groupId: number, memberId: number) {
     ]);
   return {
     group,
-    ledgers: ledgers.map((ledger) => ({
-      ...ledger,
-      createdAt: ledger.createdAt.toISOString(),
-       sourceChatMessageId: ledger.sourceChatMessageId,
-      approvals: ledger.approvals.map((approval) => ({
-        ...approval,
-        createdAt: approval.createdAt.toISOString(),
-      })),
+      ledgers: ledgers.map((ledger) => ({
+        ...ledger,
+        createdAt: ledger.createdAt.toISOString(),
+        sourceChatMessageId: ledger.sourceChatMessageId,
+        sourceThreadId: ledger.sourceThreadId,
+        approvals: ledger.approvals.map((approval) => ({
+          ...approval,
+          createdAt: approval.createdAt.toISOString(),
+        })),
+      account: ledger.account
+        ? {
+            id: ledger.account.id,
+            name: ledger.account.name,
+            type: ledger.account.type,
+          }
+        : null,
     })),
     member,
     accountingSetting,
@@ -187,10 +198,14 @@ export default async function LedgerPage() {
   };
 
   const isAccountingEnabled = setting.accountingEnabled !== false;
-  const defaultAccounts =
-    data.accounts?.filter((account) => !account.isCustom) ?? [];
-  const customAccounts =
-    data.accounts?.filter((account) => account.isCustom) ?? [];
+  const allAccounts = data.accounts ?? [];
+  const defaultAccounts = allAccounts.filter((account) => !account.isCustom);
+  const customAccounts = allAccounts.filter((account) => account.isCustom);
+  const accountOptions = allAccounts.map((account) => ({
+    id: account.id,
+    name: account.name,
+    type: account.type,
+  }));
 
   return (
     <div className="min-h-screen py-10">
@@ -424,14 +439,16 @@ export default async function LedgerPage() {
         {isAccountingEnabled ? (
           <>
             <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <LedgerCreateForm />
+              <LedgerCreateForm accounts={accountOptions} />
             </section>
             <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-zinc-900">会計一覧</h2>
               <div className="mt-4">
                 <LedgerList
                   ledgers={data.ledgers as LedgerDisplay[]}
-                  canApprove={true}
+                  canApprove={data.member?.role === ROLE_ADMIN}
+                  accounts={accountOptions}
+                  groupId={session.groupId}
                 />
               </div>
             </section>

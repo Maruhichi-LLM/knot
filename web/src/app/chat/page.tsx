@@ -1,117 +1,117 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ThreadSourceType, ThreadStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { ensureModuleEnabled } from "@/lib/modules";
-import { ensureOrgChatThread } from "@/lib/chat";
-import { ChatInput } from "@/components/chat-input";
-import { ChatMessageActions } from "@/components/chat-message-actions";
+import { ensureFreeThread } from "@/lib/chat";
+
+const SOURCE_TYPE_LABELS: Record<ThreadSourceType, string> = {
+  TODO: "ToDo",
+  EVENT: "Event",
+  ACCOUNTING: "Accounting",
+  DOCUMENT: "Document",
+  FREE: "FREE",
+};
 
 const formatter = new Intl.DateTimeFormat("ja-JP", {
   dateStyle: "short",
   timeStyle: "short",
 });
 
-type ChatPageProps = {
-  searchParams?: Promise<{
-    message?: string;
-  }>;
-};
-
-export default async function ChatPage({ searchParams }: ChatPageProps) {
+export default async function ChatPage() {
   const session = await getSessionFromCookies();
   if (!session) {
     redirect("/join");
   }
   await ensureModuleEnabled(session.groupId, "chat");
+  await ensureFreeThread(session.groupId);
 
-  const thread = await ensureOrgChatThread(session.groupId);
-  const messages = await prisma.chatMessage.findMany({
-    where: { threadId: thread.id },
+  const threads = await prisma.chatThread.findMany({
+    where: { groupId: session.groupId, status: ThreadStatus.OPEN },
+    orderBy: { updatedAt: "desc" },
     include: {
-      author: {
-        select: { id: true, displayName: true },
+      _count: {
+        select: { messages: true },
       },
-      todoItems: { select: { id: true } },
-      ledgerEntries: { select: { id: true } },
-      documents: { select: { id: true } },
     },
-    orderBy: { createdAt: "asc" },
   });
-  const resolvedParams = (await searchParams) ?? {};
-  const focusedMessageId = Number(resolvedParams.message ?? "");
+
+  const freeThread = threads.find(
+    (thread) => thread.sourceType === ThreadSourceType.FREE
+  );
 
   return (
     <div className="min-h-screen py-10">
-      <div className="page-shell flex flex-col gap-6">
+      <div className="page-shell flex flex-col gap-8">
         <header className="rounded-2xl border border-zinc-200 bg-white/90 p-6 shadow-sm">
           <p className="text-sm uppercase tracking-wide text-sky-600">
             Knot Chat
           </p>
           <h1 className="text-3xl font-semibold text-zinc-900">
-            意思決定の起点となる会話
+            案件ごとのThreadで意思決定を結ぶ
           </h1>
           <p className="mt-2 text-sm text-zinc-600">
-            チャットの発言そのものが ToDo や会計下書きに変換される想定です。次に
-            取るべき行動をここで決めましょう。
+            Threadは案件の最小単位です。FREEスレッドは雑談や未確定案件を扱い、その他のThreadはToDoや会計、ドキュメントなど特定の成果物と結びつきます。
           </p>
-          <p className="mt-4 text-xs text-zinc-500">
-            まもなくこの発言から{" "}
-            <Link href="/todo" className="font-semibold text-sky-600">
-              Knot ToDo
-            </Link>{" "}
-            や{" "}
-            <Link href="/ledger" className="font-semibold text-sky-600">
-              Knot Accounting
-            </Link>{" "}
-            へ直接変換できるようになります。
-          </p>
+          {freeThread ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+              <span className="text-zinc-500">雑談・検討用スレッド</span>
+              <Link
+                href={`/threads/${freeThread.id}`}
+                className="inline-flex rounded-full bg-sky-600 px-4 py-1 text-sm font-semibold text-white hover:bg-sky-700"
+              >
+                FREEスレッドを開く
+              </Link>
+            </div>
+          ) : null}
         </header>
 
-        <section className="rounded-2xl border border-zinc-200 bg-white/90 p-6 shadow-sm">
-          <div className="flex flex-col gap-4">
-            <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
-              {messages.length === 0 ? (
-                <p className="text-sm text-zinc-500">
-                  まだメッセージがありません。最初の意思決定を記録しましょう。
-                </p>
-              ) : (
-                messages.map((message) => (
-                  <article
-                    key={message.id}
-                    id={`message-${message.id}`}
-                    className={`rounded-xl border px-4 py-3 shadow-sm ${
-                      focusedMessageId === message.id
-                        ? "border-sky-200 bg-sky-50"
-                        : "border-zinc-100 bg-white"
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
-                      <span className="font-semibold text-zinc-700">
-                        {message.author.displayName}
-                      </span>
-                      <time dateTime={message.createdAt.toISOString()}>
-                        {formatter.format(message.createdAt)}
-                      </time>
-                    </div>
-                    <p className="mt-2 whitespace-pre-line text-sm text-zinc-800">
-                      {message.body}
-                    </p>
-                    <div className="mt-3 flex justify-end">
-                      <ChatMessageActions
-                        messageId={message.id}
-                        convertedTargets={{
-                          todo: message.todoItems.length > 0,
-                          accounting: message.ledgerEntries.length > 0,
-                          document: message.documents.length > 0,
-                        }}
-                      />
-                    </div>
-                  </article>
-                ))
-              )}
+        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-zinc-900">
+                OPEN Thread
+              </h2>
+              <p className="text-sm text-zinc-600">
+                最新の更新順で並びます。ToDo・会計・ドキュメントなどから自動生成されたThreadもここに集まります。
+              </p>
             </div>
-            <ChatInput />
+          </div>
+
+          <div className="mt-6 space-y-4">
+            {threads.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500">
+                まだThreadがありません。ToDoや会計の画面から「この件について話す」を押すと案件Threadが生成されます。
+              </p>
+            ) : (
+              threads.map((thread) => (
+                <Link
+                  key={thread.id}
+                  href={`/threads/${thread.id}`}
+                  className="flex flex-col gap-2 rounded-2xl border border-zinc-200 p-5 shadow-sm transition hover:border-sky-200 hover:bg-sky-50"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[0.7rem] text-zinc-600">
+                          {SOURCE_TYPE_LABELS[thread.sourceType]}
+                        </span>
+                        <span className="text-zinc-400">
+                          {formatter.format(thread.updatedAt)} 更新
+                        </span>
+                      </div>
+                      <h3 className="mt-1 text-lg font-semibold text-zinc-900">
+                        {thread.title}
+                      </h3>
+                    </div>
+                    <div className="text-right text-sm text-zinc-500">
+                      <p>メッセージ {thread._count.messages}</p>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            )}
           </div>
         </section>
       </div>

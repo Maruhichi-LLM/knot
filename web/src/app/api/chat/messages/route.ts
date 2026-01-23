@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { ensureModuleEnabled } from "@/lib/modules";
-import { ensureOrgChatThread } from "@/lib/chat";
+import { ensureFreeThread } from "@/lib/chat";
 
 async function getSessionOrForbidden() {
   const session = await getSessionFromCookies();
@@ -19,7 +19,7 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const thread = await ensureOrgChatThread(session.groupId);
+  const thread = await ensureFreeThread(session.groupId);
   const messages = await prisma.chatMessage.findMany({
     where: { threadId: thread.id },
     include: {
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const thread = await ensureOrgChatThread(session.groupId);
+  const thread = await ensureFreeThread(session.groupId);
   await prisma.chatMessage.create({
     data: {
       threadId: thread.id,

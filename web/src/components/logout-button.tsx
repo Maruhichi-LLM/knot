@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { emitAuthChange } from "@/lib/auth-events";
 
 export function LogoutButton() {
   const router = useRouter();
@@ -10,8 +11,10 @@ export function LogoutButton() {
   async function handleLogout() {
     setIsLoading(true);
     try {
+      emitAuthChange(false);
       await fetch("/api/logout", { method: "POST" });
-      router.push("/join");
+      router.replace("/join");
+      router.refresh();
     } finally {
       setIsLoading(false);
     }

@@ -3,7 +3,8 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { isPlatformAdminEmail } from "@/lib/admin";
-import { DocumentCategory } from "@prisma/client";
+import { DocumentCategory, ThreadSourceType } from "@prisma/client";
+import { RelatedThreadButton } from "@/components/related-thread-button";
 
 const CATEGORY_LABELS: Record<DocumentCategory, string> = {
   POLICY: "規程・方針",
@@ -79,7 +80,18 @@ export default async function DocumentDetailPage({ params }: DocumentDetailProps
             {document.event ? (
               <span>関連イベント: {document.event.title}</span>
             ) : null}
-            {document.sourceChatMessageId ? (
+            {document.sourceThreadId ? (
+              <Link
+                href={`/threads/${document.sourceThreadId}${
+                  document.sourceChatMessageId
+                    ? `?message=${document.sourceChatMessageId}`
+                    : ""
+                }`}
+                className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-semibold text-sky-600"
+              >
+                関連Thread
+              </Link>
+            ) : document.sourceChatMessageId ? (
               <Link
                 href={`/chat?message=${document.sourceChatMessageId}`}
                 className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-semibold text-sky-600"
@@ -88,6 +100,16 @@ export default async function DocumentDetailPage({ params }: DocumentDetailProps
               </Link>
             ) : null}
           </div>
+          {document.groupId === session.groupId ? (
+            <RelatedThreadButton
+              groupId={session.groupId}
+              sourceType={ThreadSourceType.DOCUMENT}
+              sourceId={document.id}
+              title={`Document: ${document.title}`}
+              threadId={document.sourceThreadId ?? null}
+              className="mt-2"
+            />
+          ) : null}
         </div>
 
         <section className="rounded-2xl border border-white bg-white p-6 shadow-sm">

@@ -8,6 +8,7 @@ type CreateLedgerRequest = {
   amount?: number | string;
   receiptUrl?: string;
   notes?: string;
+  accountId?: number | string;
 };
 
 export async function POST(request: Request) {
@@ -23,10 +24,27 @@ export async function POST(request: Request) {
   const receiptUrl = body.receiptUrl?.trim();
   const notes = body.notes?.trim();
   const amountNumber = Number(body.amount);
+  const accountIdNumber = Number(body.accountId);
 
-  if (!title || !Number.isFinite(amountNumber) || amountNumber <= 0) {
+  if (
+    !title ||
+    !Number.isFinite(amountNumber) ||
+    amountNumber <= 0 ||
+    !Number.isInteger(accountIdNumber)
+  ) {
     return NextResponse.json(
-      { error: "内容と正しい金額を入力してください。" },
+      { error: "内容・金額・勘定科目を正しく入力してください。" },
+      { status: 400 }
+    );
+  }
+
+  const account = await prisma.account.findFirst({
+    where: { id: accountIdNumber, groupId: session.groupId, isArchived: false },
+  });
+
+  if (!account) {
+    return NextResponse.json(
+      { error: "勘定科目を選択してください。" },
       { status: 400 }
     );
   }
@@ -39,6 +57,7 @@ export async function POST(request: Request) {
       amount: Math.round(amountNumber),
       receiptUrl,
       notes,
+      accountId: account.id,
     },
   });
 

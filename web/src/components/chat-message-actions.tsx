@@ -17,6 +17,12 @@ const RESULT_LABELS: Record<ConversionTarget, string> = {
   document: "議事録",
 };
 
+const ENDPOINTS: Record<ConversionTarget, string> = {
+  todo: "/api/chat/convert/todo",
+  accounting: "/api/chat/convert/accounting-draft",
+  document: "/api/chat/convert/meeting-note",
+};
+
 type Props = {
   messageId: number;
   convertedTargets: Record<ConversionTarget, boolean>;
@@ -54,14 +60,12 @@ export function ChatMessageActions({ messageId, convertedTargets }: Props) {
       setError(null);
       setFeedback(null);
       try {
-        const response = await fetch(
-          `/api/chat/messages/${messageId}/convert`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ target, messageId }),
-          }
-        );
+        const endpoint = ENDPOINTS[target];
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chatMessageId: messageId }),
+        });
         const data = (await response.json().catch(() => ({}))) as
           | ConversionResponse
           | { error?: string };
@@ -96,7 +100,7 @@ export function ChatMessageActions({ messageId, convertedTargets }: Props) {
           ︙
         </button>
         {menuOpen ? (
-          <div className="absolute right-0 z-10 mt-2 w-48 rounded-2xl border border-zinc-200 bg-white p-2 text-sm shadow-lg">
+          <div className="absolute right-full top-1/2 z-10 mr-3 w-48 -translate-y-1/2 rounded-2xl border border-zinc-200 bg-white p-2 text-sm shadow-lg">
             {(
               Object.keys(ACTION_LABELS) as Array<ConversionTarget>
             ).map((target) => (

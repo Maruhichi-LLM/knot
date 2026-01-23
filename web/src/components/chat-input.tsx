@@ -3,7 +3,11 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function ChatInput() {
+type Props = {
+  threadId: number;
+};
+
+export function ChatInput({ threadId }: Props) {
   const router = useRouter();
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -18,10 +22,10 @@ export function ChatInput() {
     setPending(true);
     setError(null);
     try {
-      const response = await fetch("/api/chat/messages", {
+      const response = await fetch(`/api/threads/${threadId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body }),
+        body: JSON.stringify({ content: body }),
       });
       if (!response.ok) {
         const data = (await response.json().catch(() => ({}))) as {
@@ -32,7 +36,7 @@ export function ChatInput() {
       }
       setBody("");
       router.refresh();
-    } catch (err) {
+    } catch {
       setError("送信時にエラーが発生しました。");
     } finally {
       setPending(false);

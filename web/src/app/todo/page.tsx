@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { TodoStatus } from "@prisma/client";
+import { ThreadSourceType, TodoStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { ensureModuleEnabled } from "@/lib/modules";
 import { revalidatePath } from "next/cache";
+import { RelatedThreadButton } from "@/components/related-thread-button";
 
 const STATUS_LABELS: Record<TodoStatus, string> = {
   TODO: "未着手",
@@ -150,16 +150,14 @@ export default async function TodoPage({ searchParams }: TodoPageProps) {
                       </button>
                     </form>
                   </div>
-                  {todo.sourceChatMessageId ? (
-                    <div className="mt-4 text-sm">
-                      <Link
-                        href={`/chat?message=${todo.sourceChatMessageId}`}
-                        className="inline-flex items-center gap-1 text-sky-600 underline"
-                      >
-                        元のチャットを開く
-                      </Link>
-                    </div>
-                  ) : null}
+                  <RelatedThreadButton
+                    groupId={session.groupId}
+                    sourceType={ThreadSourceType.TODO}
+                    sourceId={todo.id}
+                    title={`ToDo: ${todo.title}`}
+                    threadId={todo.sourceThreadId ?? null}
+                    className="mt-4"
+                  />
                 </article>
               );
             })

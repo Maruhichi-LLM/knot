@@ -62,21 +62,27 @@ model InviteCode {
 }
 
 model Ledger {
-  id                Int           @id @default(autoincrement())
-  groupId           Int
-  group             Group         @relation(fields: [groupId], references: [id])
-  createdByMemberId Int
-  createdBy         Member        @relation("LedgerCreatedBy", fields: [createdByMemberId], references: [id])
-  title             String
-  amount            Int
-  receiptUrl        String?
-  notes             String?
-  status            LedgerStatus  @default(PENDING)
-  approvals         Approval[]
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  sourceChatMessageId Int?        @unique
-  sourceChatMessage  ChatMessage? @relation("LedgerSourceChat", fields: [sourceChatMessageId], references: [id])
+  id                  Int           @id @default(autoincrement())
+  groupId             Int
+  group               Group         @relation(fields: [groupId], references: [id])
+  createdByMemberId   Int
+  createdBy           Member        @relation("LedgerCreatedBy", fields: [createdByMemberId], references: [id])
+  title               String
+  amount              Int
+  receiptUrl          String?
+  notes               String?
+  status              LedgerStatus  @default(PENDING)
+  approvals           Approval[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  sourceChatMessageId Int?          @unique
+  sourceThreadId      Int?
+  sourceChatMessage   ChatMessage?  @relation("LedgerSourceChat", fields: [sourceChatMessageId], references: [id])
+  sourceThread        ChatThread?   @relation("LedgerThread", fields: [sourceThreadId], references: [id])
+  accountId           Int?
+  account             Account?      @relation("AccountLedgers", fields: [accountId], references: [id])
+
+  @@index([sourceThreadId])
 }
 
 model Approval {
@@ -164,21 +170,25 @@ model AccountingSetting {
 }
 
 model Document {
-  id                Int              @id @default(autoincrement())
-  groupId           Int
-  group             Group            @relation(fields: [groupId], references: [id])
-  title             String
-  category          DocumentCategory
-  fiscalYear        Int
-  eventId           Int?
-  event             Event?           @relation(fields: [eventId], references: [id])
-  createdByMemberId Int
-  createdBy         Member           @relation(fields: [createdByMemberId], references: [id])
-  versions          DocumentVersion[]
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  sourceChatMessageId Int?           @unique
-  sourceChatMessage  ChatMessage?    @relation("DocumentSourceChat", fields: [sourceChatMessageId], references: [id])
+  id                  Int              @id @default(autoincrement())
+  groupId             Int
+  group               Group            @relation(fields: [groupId], references: [id])
+  title               String
+  category            DocumentCategory
+  fiscalYear          Int
+  eventId             Int?
+  event               Event?           @relation(fields: [eventId], references: [id])
+  createdByMemberId   Int
+  createdBy           Member           @relation(fields: [createdByMemberId], references: [id])
+  versions            DocumentVersion[]
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  sourceChatMessageId Int?             @unique
+  sourceThreadId      Int?
+  sourceChatMessage   ChatMessage?     @relation("DocumentSourceChat", fields: [sourceChatMessageId], references: [id])
+  sourceThread        ChatThread?      @relation("DocumentThread", fields: [sourceThreadId], references: [id])
+
+  @@index([sourceThreadId])
 }
 
 model DocumentVersion {
@@ -203,14 +213,36 @@ enum DocumentCategory {
   OTHER
 }
 
+enum ThreadSourceType {
+  TODO
+  EVENT
+  ACCOUNTING
+  DOCUMENT
+  FREE
+}
+
+enum ThreadStatus {
+  OPEN
+  CLOSED
+}
+
 model ChatThread {
-  id        Int          @id @default(autoincrement())
-  groupId   Int
-  group     Group        @relation(fields: [groupId], references: [id])
-  scopeType String       @default("ORG")
-  scopeId   Int?
-  messages  ChatMessage[]
-  createdAt DateTime     @default(now())
+  id           Int           @id @default(autoincrement())
+  groupId      Int
+  group        Group         @relation(fields: [groupId], references: [id])
+  title        String
+  sourceType   ThreadSourceType
+  sourceId     Int?
+  status       ThreadStatus  @default(OPEN)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  messages     ChatMessage[]
+  todoItems    TodoItem[]
+  ledgerEntries Ledger[]     @relation("LedgerThread")
+  documents    Document[]    @relation("DocumentThread")
+
+  @@index([groupId, status])
+  @@index([groupId, sourceType, sourceId])
 }
 
 model ChatMessage {
@@ -227,6 +259,9 @@ model ChatMessage {
   todoItems TodoItem[]
   ledgerEntries Ledger[] @relation("LedgerSourceChat")
   documents Document[]   @relation("DocumentSourceChat")
+
+  @@index([threadId, createdAt])
+  @@index([authorId, createdAt])
 }
 
 model TodoItem {
@@ -241,10 +276,15 @@ model TodoItem {
   body                 String?
   status               TodoStatus @default(TODO)
   dueDate              DateTime?
+  sourceThreadId       Int?
   sourceChatMessageId  Int?       @unique
   sourceChatMessage    ChatMessage? @relation(fields: [sourceChatMessageId], references: [id])
+  sourceThread         ChatThread? @relation(fields: [sourceThreadId], references: [id])
   createdAt            DateTime   @default(now())
   updatedAt            DateTime   @updatedAt
+
+  @@index([sourceThreadId])
+  @@index([sourceChatMessageId])
 }
 
 enum TodoStatus {
@@ -264,6 +304,7 @@ model Account {
   order      Int         @default(0)
   createdAt  DateTime    @default(now())
   budgets    Budget[]
+  ledgers    Ledger[]    @relation("AccountLedgers")
 }
 
 model FinancialAccount {
