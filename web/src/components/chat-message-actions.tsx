@@ -26,6 +26,7 @@ const ENDPOINTS: Record<ConversionTarget, string> = {
 type Props = {
   messageId: number;
   convertedTargets: Record<ConversionTarget, boolean>;
+  menuAlign?: "left" | "right";
 };
 
 type ConversionResponse = {
@@ -34,7 +35,11 @@ type ConversionResponse = {
   url?: string;
 };
 
-export function ChatMessageActions({ messageId, convertedTargets }: Props) {
+export function ChatMessageActions({
+  messageId,
+  convertedTargets,
+  menuAlign = "right",
+}: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [pending, setPending] = useState<ConversionTarget | null>(null);
   const [feedback, setFeedback] = useState<ConversionResponse | null>(null);
@@ -89,8 +94,14 @@ export function ChatMessageActions({ messageId, convertedTargets }: Props) {
     [messageId]
   );
 
+  const alignRight = menuAlign === "right";
+
   return (
-    <div className="flex flex-col items-end gap-2 text-xs text-zinc-600">
+    <div
+      className={`flex flex-col gap-2 text-xs text-zinc-600 ${
+        alignRight ? "items-end" : "items-start"
+      }`}
+    >
       <div className="relative" ref={containerRef}>
         <button
           type="button"
@@ -100,7 +111,11 @@ export function ChatMessageActions({ messageId, convertedTargets }: Props) {
           ︙
         </button>
         {menuOpen ? (
-          <div className="absolute right-full top-1/2 z-10 mr-3 w-48 -translate-y-1/2 rounded-2xl border border-zinc-200 bg-white p-2 text-sm shadow-lg">
+          <div
+            className={`absolute top-1/2 z-10 w-48 -translate-y-1/2 rounded-2xl border border-zinc-200 bg-white p-2 text-sm shadow-lg ${
+              alignRight ? "right-full mr-3" : "left-full ml-3"
+            }`}
+          >
             {(
               Object.keys(ACTION_LABELS) as Array<ConversionTarget>
             ).map((target) => (

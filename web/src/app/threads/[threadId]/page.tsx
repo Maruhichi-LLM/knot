@@ -34,12 +34,13 @@ type PageProps = {
 export default async function ThreadDetailPage({ params, searchParams }: PageProps) {
   const resolvedParams = await params;
   const resolvedSearchParams = (await searchParams) ?? {};
+  const threadIdString = resolvedParams.threadId;
+  const threadId = Number(threadIdString);
   const session = await getSessionFromCookies();
   if (!session) {
     redirect("/join");
   }
   await ensureModuleEnabled(session.groupId, "chat");
-  const threadId = Number(resolvedParams.threadId);
   if (!Number.isInteger(threadId)) {
     redirect("/chat");
   }
@@ -166,6 +167,7 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
                           </p>
                           <div className={`mt-3 flex ${isOwn ? "justify-end" : "justify-start"}`}>
                             <ChatMessageActions
+                              menuAlign={isOwn ? "right" : "left"}
                               messageId={message.id}
                               convertedTargets={{
                                 todo: message.todoItems.length > 0,
@@ -180,7 +182,7 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
                   })
                 )}
               </div>
-              <ChatInput threadId={thread.id} />
+              <ChatInput threadId={threadIdString} />
             </div>
           </section>
 

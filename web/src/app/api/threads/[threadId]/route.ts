@@ -12,13 +12,14 @@ function parseThreadId(raw: string) {
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { threadId: string } }
+  { params }: { params: Promise<{ threadId: string }> }
 ) {
   const session = await getSessionFromCookies();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const threadId = parseThreadId(params.threadId);
+  const resolvedParams = await params;
+  const threadId = parseThreadId(resolvedParams.threadId);
   if (!threadId) {
     return NextResponse.json({ error: "Invalid thread id" }, { status: 400 });
   }

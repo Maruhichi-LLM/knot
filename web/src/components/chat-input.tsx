@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Props = {
-  threadId: number;
+  threadId: string | number;
 };
 
 export function ChatInput({ threadId }: Props) {
