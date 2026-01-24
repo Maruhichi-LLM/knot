@@ -9,7 +9,20 @@ type CreateLedgerRequest = {
   receiptUrl?: string;
   notes?: string;
   accountId?: number | string;
+  transactionDate?: string;
 };
+
+function parseDateInput(value?: string | null) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const isoString = trimmed.length <= 10 ? `${trimmed}T00:00:00` : trimmed;
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date;
+}
 
 export async function POST(request: Request) {
   const session = await getSessionFromCookies();
@@ -25,15 +38,17 @@ export async function POST(request: Request) {
   const notes = body.notes?.trim();
   const amountNumber = Number(body.amount);
   const accountIdNumber = Number(body.accountId);
+  const transactionDate = parseDateInput(body.transactionDate);
 
   if (
     !title ||
     !Number.isFinite(amountNumber) ||
     amountNumber <= 0 ||
-    !Number.isInteger(accountIdNumber)
+    !Number.isInteger(accountIdNumber) ||
+    !transactionDate
   ) {
     return NextResponse.json(
-      { error: "内容・金額・勘定科目を正しく入力してください。" },
+      { error: "内容・金額・勘定科目・日付を正しく入力してください。" },
       { status: 400 }
     );
   }
@@ -55,6 +70,7 @@ export async function POST(request: Request) {
       createdByMemberId: session.memberId,
       title,
       amount: Math.round(amountNumber),
+      transactionDate,
       receiptUrl,
       notes,
       accountId: account.id,

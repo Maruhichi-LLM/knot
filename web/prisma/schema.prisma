@@ -69,6 +69,7 @@ model Ledger {
   createdBy           Member        @relation("LedgerCreatedBy", fields: [createdByMemberId], references: [id])
   title               String
   amount              Int
+  transactionDate     DateTime      @default(now())
   receiptUrl          String?
   notes               String?
   status              LedgerStatus  @default(PENDING)

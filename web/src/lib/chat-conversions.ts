@@ -101,6 +101,7 @@ export async function convertMessageToLedgerDraft(
       createdByMemberId: actorMemberId,
       title: summarize(message.body, 80),
       amount: 0,
+      transactionDate: new Date(),
       notes: message.body,
       status: LedgerStatus.DRAFT,
       sourceChatMessageId: message.id,

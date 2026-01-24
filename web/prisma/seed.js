@@ -226,6 +226,7 @@ async function main() {
       createdByMemberId: accountant.id,
       title: "イベント備品購入",
       amount: 12000,
+      transactionDate: new Date(),
       receiptUrl: 'https://example.com/receipt/demo',
       notes: 'ボールとビブス',
       status: "PENDING",

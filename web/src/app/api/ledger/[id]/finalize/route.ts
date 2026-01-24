@@ -5,11 +5,39 @@ import { ROLE_ADMIN } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 
 type FinalizeLedgerRequest = {
+  ledgerId?: number | string;
   amount?: number | string;
   accountId?: number | string;
   receiptUrl?: string;
   notes?: string;
+  transactionDate?: string;
 };
+
+function parseDateInput(value?: string | null) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const isoString = trimmed.length <= 10 ? `${trimmed}T00:00:00` : trimmed;
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date;
+}
+
+function resolveLedgerId(
+  paramId?: string,
+  fallback?: number | string | null
+): number | null {
+  const parse = (value: unknown) => {
+    if (typeof value !== "string" && typeof value !== "number") {
+      return null;
+    }
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  };
+  return parse(paramId) ?? parse(fallback);
+}
 
 export async function POST(
   request: Request,
@@ -20,13 +48,19 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const id = Number(params.id);
-  if (!Number.isInteger(id)) {
-    return NextResponse.json({ error: "Invalid ledger id" }, { status: 400 });
-  }
-
   const payload = ((await request.json().catch(() => ({}))) ??
     {}) as FinalizeLedgerRequest;
+  const id = resolveLedgerId(params.id, payload.ledgerId);
+  if (id === null) {
+    return NextResponse.json({ error: "Invalid ledger id" }, { status: 400 });
+  }
+  const transactionDate = parseDateInput(payload.transactionDate);
+  if (!transactionDate) {
+    return NextResponse.json(
+      { error: "日付を正しく入力してください。" },
+      { status: 400 }
+    );
+  }
 
   const amountNumber = Number(payload.amount);
   const accountIdNumber = Number(payload.accountId);
@@ -102,6 +136,7 @@ export async function POST(
     data: {
       amount: Math.round(amountNumber),
       accountId: account.id,
+      transactionDate,
       receiptUrl,
       notes,
       status: "PENDING",

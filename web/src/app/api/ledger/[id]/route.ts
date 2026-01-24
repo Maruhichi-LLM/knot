@@ -4,9 +4,24 @@ import { getSessionFromCookies } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 
 type UpdateLedgerRequest = {
+  ledgerId?: number | string;
   action?: "approve" | "reject";
   comment?: string;
 };
+
+function resolveLedgerId(
+  paramId?: string,
+  fallback?: number | string | null
+): number | null {
+  const parse = (value: unknown) => {
+    if (typeof value !== "string" && typeof value !== "number") {
+      return null;
+    }
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  };
+  return parse(paramId) ?? parse(fallback);
+}
 
 export async function PATCH(
   request: Request,
@@ -17,13 +32,12 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const id = Number(params.id);
-  if (!Number.isInteger(id)) {
-    return NextResponse.json({ error: "Invalid ledger id" }, { status: 400 });
-  }
-
   const body = ((await request.json().catch(() => ({}))) ??
     {}) as UpdateLedgerRequest;
+  const id = resolveLedgerId(params.id, body.ledgerId);
+  if (id === null) {
+    return NextResponse.json({ error: "Invalid ledger id" }, { status: 400 });
+  }
   const action = body.action;
   if (action !== "approve" && action !== "reject") {
     return NextResponse.json(

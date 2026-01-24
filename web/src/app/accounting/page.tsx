@@ -154,23 +154,24 @@ async function fetchLedgerData(groupId: number, memberId: number) {
     ]);
   return {
     group,
-      ledgers: ledgers.map((ledger) => ({
+    ledgers: ledgers.map((ledger) => ({
         ...ledger,
         createdAt: ledger.createdAt.toISOString(),
+        transactionDate: ledger.transactionDate.toISOString(),
         sourceChatMessageId: ledger.sourceChatMessageId,
         sourceThreadId: ledger.sourceThreadId,
         approvals: ledger.approvals.map((approval) => ({
           ...approval,
           createdAt: approval.createdAt.toISOString(),
         })),
-      account: ledger.account
-        ? {
-            id: ledger.account.id,
-            name: ledger.account.name,
-            type: ledger.account.type,
-          }
-        : null,
-    })),
+        account: ledger.account
+          ? {
+              id: ledger.account.id,
+              name: ledger.account.name,
+              type: ledger.account.type,
+            }
+          : null,
+      })),
     member,
     accountingSetting,
     accounts,
@@ -214,6 +215,12 @@ export default async function LedgerPage() {
   const closingMonthLabel = `${setting.fiscalYearEndMonth}月`;
   const approvalFlowSummary = setting.approvalFlow?.trim() ?? "";
   const numberFormatter = new Intl.NumberFormat("ja-JP");
+  const submissionDateLabel = new Intl.DateTimeFormat("ja-JP", {
+    dateStyle: "long",
+    timeStyle: "short",
+    timeZone: "Asia/Tokyo",
+  }).format(new Date());
+  const applicantName = data.member?.displayName ?? "未設定";
   const carryoverAmountLabel = `${numberFormatter.format(
     setting.carryoverAmount ?? 0
   )}円`;
@@ -257,6 +264,14 @@ export default async function LedgerPage() {
       label: "勘定科目マスタ",
       description: `基本 ${defaultAccounts.length} ・ 自由 ${customAccounts.length}`,
     });
+    navigationItems.push({
+      id: "budget-settings",
+      label: "予算の設定",
+      description:
+        setting.budgetEnabled === false
+          ? "予算機能は現在 OFF"
+          : "予算機能は現在 ON",
+    });
   }
 
   const defaultSectionId = navigationItems[0]?.id ?? "accounting-register";
@@ -285,11 +300,32 @@ export default async function LedgerPage() {
       return accountingDisabledNotice;
     }
     return (
-      <section key="ledger-create-section" className="space-y-4">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+      <section
+        key="ledger-create-section"
+        className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm space-y-4"
+      >
+        <div>
           <h2 className="text-lg font-semibold text-zinc-900">{title}</h2>
           <p className="mt-2 text-sm text-zinc-600">{description}</p>
         </div>
+        <dl className="grid gap-4 rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-sm text-zinc-600 sm:grid-cols-2">
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-zinc-500">
+              申請者
+            </dt>
+            <dd className="mt-1 text-base font-semibold text-zinc-900">
+              {applicantName}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-zinc-500">
+              申請日付
+            </dt>
+            <dd className="mt-1 text-base font-semibold text-zinc-900">
+              {submissionDateLabel}
+            </dd>
+          </div>
+        </dl>
         <LedgerCreateForm accounts={accountOptions} />
       </section>
     );
@@ -391,7 +427,7 @@ export default async function LedgerPage() {
     sections.push({
       id: "ledger-create",
       content: renderLedgerCreateSection(
-        "申請の作成",
+        "入出金の記録",
         "証憑やメモを入力して承認を依頼します。下書き保存は経費一覧から行えます。"
       ),
     });
@@ -618,15 +654,68 @@ export default async function LedgerPage() {
         </section>
       ),
     });
-  } else if (navigationItems.some((item) => item.id === "accounting-settings")) {
     sections.push({
-      id: "accounting-settings",
-      content: renderAdminOnlyNotice("accounting-settings-notice"),
+      id: "budget-settings",
+      content: (
+        <section
+          key="budget-settings-section"
+          className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+        >
+          <h2 className="text-lg font-semibold text-zinc-900">予算の設定</h2>
+          <p className="mt-2 text-sm text-zinc-600">
+            予算機能の ON/OFF と運用ルールを確認します。会計年度の計画や配分方針をチームと共有してから変更してください。
+          </p>
+          <dl className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
+              <dt className="text-xs uppercase tracking-wide text-zinc-500">
+                予算機能
+              </dt>
+              <dd className="mt-2 text-2xl font-semibold text-zinc-900">
+                {budgetStatusLabel}
+              </dd>
+              <p className="mt-1 text-xs text-zinc-500">
+                期中の予実管理を行うかどうか。
+              </p>
+            </div>
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
+              <dt className="text-xs uppercase tracking-wide text-zinc-500">
+                期首 / 決算月
+              </dt>
+              <dd className="mt-2 text-2xl font-semibold text-zinc-900">
+                {setting.fiscalYearStartMonth}月 / {closingMonthLabel}
+              </dd>
+              <p className="mt-1 text-xs text-zinc-500">
+                年度を揃えると予算ロールオーバーが簡単になります。
+              </p>
+            </div>
+          </dl>
+          <div className="mt-6 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-600">
+            <p>
+              具体的な配分や上限設定は「会計年度と承認フロー」セクションで変更できます。必要に応じて承認フローのメモ欄に予算のルールを残してください。
+            </p>
+          </div>
+        </section>
+      ),
     });
-    sections.push({
-      id: "account-master",
-      content: renderAdminOnlyNotice("account-master-notice"),
-    });
+  } else {
+    if (navigationItems.some((item) => item.id === "accounting-settings")) {
+      sections.push({
+        id: "accounting-settings",
+        content: renderAdminOnlyNotice("accounting-settings-notice"),
+      });
+    }
+    if (navigationItems.some((item) => item.id === "account-master")) {
+      sections.push({
+        id: "account-master",
+        content: renderAdminOnlyNotice("account-master-notice"),
+      });
+    }
+    if (navigationItems.some((item) => item.id === "budget-settings")) {
+      sections.push({
+        id: "budget-settings",
+        content: renderAdminOnlyNotice("budget-settings-notice"),
+      });
+    }
   }
 
   const summaryCard = (
