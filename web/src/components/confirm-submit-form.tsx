@@ -26,11 +26,11 @@ export function ConfirmSubmitForm({
 }: ConfirmSubmitFormProps) {
   const formRef = useRef<HTMLFormElement | null>(null);
   const [showDialog, setShowDialog] = useState(false);
-  const [skipConfirm, setSkipConfirm] = useState(false);
+  const skipConfirmRef = useRef(false);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    if (skipConfirm) {
-      setSkipConfirm(false);
+    if (skipConfirmRef.current) {
+      skipConfirmRef.current = false;
       onSubmit?.(event);
       return;
     }
@@ -38,6 +38,7 @@ export function ConfirmSubmitForm({
     event.preventDefault();
     event.stopPropagation();
     setShowDialog(true);
+    onSubmit?.(event);
   }
 
   function closeDialog() {
@@ -46,7 +47,7 @@ export function ConfirmSubmitForm({
 
   function confirmAndSubmit() {
     setShowDialog(false);
-    setSkipConfirm(true);
+    skipConfirmRef.current = true;
     formRef.current?.requestSubmit();
   }
 

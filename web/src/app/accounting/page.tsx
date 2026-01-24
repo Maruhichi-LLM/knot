@@ -16,6 +16,12 @@ export const dynamic = "force-dynamic";
 
 const MONTH_VALUES = Array.from({ length: 12 }, (_, index) => index + 1);
 
+function resolveFiscalYear(date: Date, startMonth: number) {
+  const month = date.getMonth() + 1;
+  const year = date.getFullYear();
+  return month >= startMonth ? year : year - 1;
+}
+
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   ASSET: "資産",
   LIABILITY: "負債",
@@ -84,6 +90,19 @@ async function saveAccountingSettingsAction(formData: FormData) {
 
   revalidatePath("/accounting");
   revalidatePath("/management");
+
+  const displayYearRaw = Number(formData.get("displayFiscalYear"));
+  const fallbackYearRaw = Number(formData.get("currentFiscalYear"));
+  const targetDisplayYear = Number.isInteger(displayYearRaw)
+    ? displayYearRaw
+    : fallbackYearRaw;
+  if (Number.isInteger(targetDisplayYear)) {
+    redirect(
+      `/accounting?section=accounting-settings&fiscalYear=${targetDisplayYear}`
+    );
+  }
+
+  redirect("/accounting?section=accounting-settings");
 }
 
 async function toggleBudgetStatusAction(formData: FormData) {
@@ -110,6 +129,62 @@ async function toggleBudgetStatusAction(formData: FormData) {
       carryoverAmount: 0,
       budgetEnabled: enable,
     },
+  });
+
+  revalidatePath("/accounting");
+  revalidatePath("/management");
+}
+
+async function saveBudgetPlanAction(formData: FormData) {
+  "use server";
+  const { session } = await requireAdminSession();
+  const fiscalYear = Number(formData.get("fiscalYear"));
+  if (!Number.isInteger(fiscalYear)) {
+    throw new Error("年度を正しく指定してください。");
+  }
+
+  const entries: Array<{ accountId: number; amount: number }> = [];
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith("budget-")) continue;
+    const accountId = Number(key.replace("budget-", ""));
+    if (!Number.isInteger(accountId)) continue;
+    const normalized = String(value ?? "").replace(/[,、]/g, "").trim();
+    const amount = normalized ? Number(normalized) : 0;
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new Error("予算は0以上の数値を入力してください。");
+    }
+    entries.push({ accountId, amount: Math.round(amount) });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    for (const entry of entries) {
+      if (entry.amount > 0) {
+        await tx.budget.upsert({
+          where: {
+            groupId_accountId_fiscalYear: {
+              groupId: session.groupId,
+              accountId: entry.accountId,
+              fiscalYear,
+            },
+          },
+          update: { amount: entry.amount },
+          create: {
+            groupId: session.groupId,
+            accountId: entry.accountId,
+            fiscalYear,
+            amount: entry.amount,
+          },
+        });
+      } else {
+        await tx.budget.deleteMany({
+          where: {
+            groupId: session.groupId,
+            accountId: entry.accountId,
+            fiscalYear,
+          },
+        });
+      }
+    }
   });
 
   revalidatePath("/accounting");
@@ -173,6 +248,11 @@ async function fetchLedgerData(groupId: number, memberId: number) {
         orderBy: { order: "asc" },
       }),
     ]);
+  const fiscalYearStart = group?.fiscalYearStartMonth ?? 4;
+  const currentFiscalYear = resolveFiscalYear(new Date(), fiscalYearStart);
+  const budgets = await prisma.budget.findMany({
+    where: { groupId, fiscalYear: currentFiscalYear },
+  });
   return {
     group,
     ledgers: ledgers.map((ledger) => ({
@@ -196,10 +276,16 @@ async function fetchLedgerData(groupId: number, memberId: number) {
     member,
     accountingSetting,
     accounts,
+    budgets,
+    currentFiscalYear,
   };
 }
 
-export default async function LedgerPage() {
+type PageProps = {
+  searchParams?: Record<string, string | string[]>;
+};
+
+export default async function LedgerPage({ searchParams }: PageProps) {
   const session = await getSessionFromCookies();
   if (!session) {
     redirect("/join");
@@ -211,6 +297,32 @@ export default async function LedgerPage() {
   if (!data.group) {
     redirect("/join");
   }
+
+  const defaultFiscalYear =
+    data.currentFiscalYear ??
+    resolveFiscalYear(new Date(), data.group.fiscalYearStartMonth ?? 4);
+  const requestedFiscalYearRaw = (() => {
+    const param = searchParams?.fiscalYear ?? searchParams?.year;
+    return Array.isArray(param) ? param[0] : param;
+  })();
+  let targetFiscalYear = defaultFiscalYear;
+  if (requestedFiscalYearRaw) {
+    const parsed = Number(requestedFiscalYearRaw);
+    if (
+      Number.isInteger(parsed) &&
+      parsed >= 2000 &&
+      parsed <= new Date().getFullYear() + 10
+    ) {
+      targetFiscalYear = parsed;
+    }
+  }
+
+  const budgetsForSelectedYear =
+    targetFiscalYear === defaultFiscalYear
+      ? data.budgets ?? []
+      : await prisma.budget.findMany({
+          where: { groupId: session.groupId, fiscalYear: targetFiscalYear },
+        });
 
   const canManage = data.member?.role === ROLE_ADMIN;
   const setting = data.accountingSetting ?? {
@@ -224,6 +336,34 @@ export default async function LedgerPage() {
   const allAccounts = data.accounts ?? [];
   const defaultAccounts = allAccounts.filter((account) => !account.isCustom);
   const customAccounts = allAccounts.filter((account) => account.isCustom);
+  const expenseAccounts = allAccounts.filter(
+    (account) => account.type === "EXPENSE"
+  );
+  const incomeBudgetAccountNames = [
+    "会費収入",
+    "事業収入",
+    "補助金等収入",
+    "寄附金収入",
+    "雑収入",
+    "受取利息",
+    "受取配当金",
+  ];
+  const incomeBudgetAccounts = incomeBudgetAccountNames
+    .map((name) => allAccounts.find((account) => account.name === name))
+    .filter(
+      (account): account is NonNullable<typeof account> => Boolean(account)
+    );
+  const budgetMap = new Map(
+    budgetsForSelectedYear.map((budget) => [budget.accountId, budget.amount])
+  );
+  const fiscalYearLabel = `${targetFiscalYear}年度`;
+  const fiscalYearOptionsBase = Array.from({ length: 11 }, (_, index) => {
+    const offset = 5 - index;
+    return defaultFiscalYear + offset;
+  }).filter((year) => year >= 2000);
+  const fiscalYearOptions = Array.from(
+    new Set([...fiscalYearOptionsBase, targetFiscalYear])
+  ).sort((a, b) => b - a);
   const accountOptions = allAccounts.map((account) => ({
     id: account.id,
     name: account.name,
@@ -287,7 +427,14 @@ export default async function LedgerPage() {
     });
   }
 
-  const defaultSectionId = navigationItems[0]?.id ?? "accounting-register";
+  const requestedSectionIdRaw = (() => {
+    const sectionParam = searchParams?.section;
+    return Array.isArray(sectionParam) ? sectionParam[0] : sectionParam;
+  })();
+  const availableSectionIds = new Set(navigationItems.map((item) => item.id));
+  const defaultSectionId = availableSectionIds.has(requestedSectionIdRaw ?? "")
+    ? (requestedSectionIdRaw as string)
+    : navigationItems[0]?.id ?? "accounting-register";
   const renderAdminOnlyNotice = (key: string) => (
     <section
       key={key}
@@ -444,12 +591,51 @@ export default async function LedgerPage() {
           <p className="mt-2 text-sm text-zinc-600">
             会計期間、承認ステップ、前期繰越金、予算機能をまとめて設定します。
           </p>
+          <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
+              <dt className="text-xs uppercase tracking-wide text-zinc-500">
+                対象年度
+              </dt>
+              <dd className="mt-2 text-2xl font-semibold text-zinc-900">
+                {fiscalYearLabel}
+              </dd>
+              <p className="mt-1 text-xs text-zinc-500">
+                現在の設定が適用される年度です。
+              </p>
+            </div>
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
+              <dt className="text-xs uppercase tracking-wide text-zinc-500">
+                会計期間
+              </dt>
+              <dd className="mt-2 text-base font-semibold text-zinc-900">
+                {setting.fiscalYearStartMonth}月〜{closingMonthLabel}
+              </dd>
+              <p className="mt-1 text-xs text-zinc-500">
+                期首と期末は以下で変更できます。
+              </p>
+            </div>
+          </dl>
           <ConfirmSubmitForm
             action={saveAccountingSettingsAction}
             className="mt-4 space-y-4"
             title="会計年度と承認フロー"
             message="この内容で保存しますか？"
           >
+            <input type="hidden" name="currentFiscalYear" value={targetFiscalYear} />
+            <label className="block text-sm text-zinc-600">
+              表示する年度
+              <select
+                name="displayFiscalYear"
+                defaultValue={targetFiscalYear}
+                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+              >
+                {fiscalYearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}年度
+                  </option>
+                ))}
+              </select>
+            </label>
             <div className="space-y-4">
               <label className="block text-sm text-zinc-600">
                 期首
@@ -675,6 +861,97 @@ export default async function LedgerPage() {
               </p>
             </div>
           </dl>
+          {isBudgetEnabled ? (
+            <ConfirmSubmitForm
+              action={saveBudgetPlanAction}
+              className="mt-6 space-y-4"
+              title="予算の設定"
+              message="この内容で予算を保存しますか？"
+            >
+              <input
+                type="hidden"
+                name="fiscalYear"
+                value={targetFiscalYear}
+              />
+              <div className="rounded-2xl border border-zinc-200">
+                <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-700">
+                  <span>{targetFiscalYear}年度の科目別予算</span>
+                  <span className="text-xs text-zinc-500">円単位で入力</span>
+                </div>
+                {incomeBudgetAccounts.length > 0 ||
+                expenseAccounts.length > 0 ? (
+                  <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                    {incomeBudgetAccounts.length > 0 ? (
+                      <div className="rounded-xl border border-zinc-100">
+                        <div className="bg-zinc-50 px-4 py-2 text-sm font-semibold text-zinc-700">
+                          収入の部
+                        </div>
+                        <div className="divide-y divide-zinc-100">
+                          {incomeBudgetAccounts.map((account) => (
+                            <label
+                              key={account.id}
+                              className="flex flex-col gap-1 px-4 py-3 text-sm text-zinc-600 lg:flex-row lg:items-center lg:gap-3"
+                            >
+                              <span className="flex-1 font-medium text-zinc-800">
+                                {account.name}
+                              </span>
+                              <input
+                                name={`budget-${account.id}`}
+                                defaultValue={budgetMap.get(account.id) ?? ""}
+                                type="number"
+                                min={0}
+                                className="w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 lg:max-w-[200px]"
+                                placeholder="0"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {expenseAccounts.length > 0 ? (
+                      <div className="rounded-xl border border-zinc-100">
+                        <div className="bg-zinc-50 px-4 py-2 text-sm font-semibold text-zinc-700">
+                          支出の部
+                        </div>
+                        <div className="divide-y divide-zinc-100">
+                          {expenseAccounts.map((account) => (
+                            <label
+                              key={account.id}
+                              className="flex flex-col gap-1 px-4 py-3 text-sm text-zinc-600 lg:flex-row lg:items-center lg:gap-3"
+                            >
+                              <span className="flex-1 font-medium text-zinc-800">
+                                {account.name}
+                              </span>
+                              <input
+                                name={`budget-${account.id}`}
+                                defaultValue={budgetMap.get(account.id) ?? ""}
+                                type="number"
+                                min={0}
+                                className="w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 lg:max-w-[200px]"
+                                placeholder="0"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="px-4 py-6 text-sm text-zinc-500">
+                    予算設定可能な科目がありません。まずは勘定科目マスタで対象科目を作成してください。
+                  </p>
+                )}
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  className="rounded-full bg-sky-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-sky-700"
+                >
+                  予算を保存
+                </button>
+              </div>
+            </ConfirmSubmitForm>
+          ) : null}
           <div className="mt-6 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-600">
             <p>
               具体的な配分や上限設定は「会計年度と承認フロー」セクションで変更できます。必要に応じて承認フローのメモ欄に予算のルールを残してください。
