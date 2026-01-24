@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
@@ -8,7 +7,6 @@ import { LedgerCreateForm } from "@/components/ledger-create-form";
 import { ConfirmSubmitForm } from "@/components/confirm-submit-form";
 import { ROLE_ADMIN } from "@/lib/roles";
 import { ensureModuleEnabled } from "@/lib/modules";
-import { KNOT_CALENDAR_PATH } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { AccountingLayout } from "@/components/accounting-layout";
 import { BudgetInputField } from "@/components/budget-input-field";
@@ -955,12 +953,6 @@ export default async function LedgerPage({ searchParams }: PageProps) {
           <p className="mt-2 text-sm text-zinc-600">
             承認と証憑の管理をここで行います。
           </p>
-          <Link
-            href={KNOT_CALENDAR_PATH}
-            className="mt-4 inline-flex text-sm text-sky-600 underline"
-          >
-            ← Knot Calendar へ戻る
-          </Link>
         </header>
         <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-zinc-900">現在の状況</h2>

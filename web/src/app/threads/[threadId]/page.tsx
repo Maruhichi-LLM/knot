@@ -80,46 +80,57 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
   const sourceLink = resolveSourceLink(thread.sourceType, thread.sourceId);
 
   return (
-    <div className="min-h-screen py-10">
-      <div className="page-shell flex flex-col gap-6">
-        <header className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white/90 p-6 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-zinc-500">
-                {SOURCE_TYPE_LABELS[thread.sourceType]}
-              </p>
-              <h1 className="text-3xl font-semibold text-zinc-900">
-                {thread.title}
-              </h1>
-            </div>
+    <div className="flex h-screen flex-col bg-zinc-50">
+      {/* ヘッダー */}
+      <header className="flex-shrink-0 border-b border-zinc-200 bg-white px-4 py-3 shadow-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
             <Link
               href="/chat"
-              className="rounded-full border border-zinc-200 px-4 py-2 text-sm text-zinc-600 hover:border-sky-300 hover:text-sky-600"
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 transition hover:border-sky-300 hover:text-sky-600"
             >
-              ← Thread一覧
+              ← 一覧
             </Link>
+            <div className="h-6 w-px bg-zinc-200" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-600">
+                  {SOURCE_TYPE_LABELS[thread.sourceType]}
+                </span>
+                <h1 className="text-lg font-semibold text-zinc-900">
+                  {thread.title}
+                </h1>
+              </div>
+              <p className="text-xs text-zinc-500">
+                最終更新 {formatter.format(thread.updatedAt)}
+              </p>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-600">
-            <span>最終更新 {formatter.format(thread.updatedAt)}</span>
-            {sourceLink ? (
-              <Link
-                href={sourceLink}
-                className="inline-flex items-center text-sky-600 underline"
-              >
-                元のモジュールを開く
-              </Link>
-            ) : null}
-          </div>
-        </header>
+          {sourceLink ? (
+            <Link
+              href={sourceLink}
+              className="text-sm text-sky-600 underline hover:text-sky-700"
+            >
+              元のモジュールを開く
+            </Link>
+          ) : null}
+        </div>
+      </header>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
-          <section className="rounded-2xl border border-zinc-200 bg-white/90 p-6 shadow-sm">
-            <div className="flex flex-col gap-4">
-              <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-2">
+      {/* メインコンテンツ */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* チャットエリア */}
+        <div className="flex flex-1 flex-col">
+          {/* メッセージエリア */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="mx-auto max-w-4xl px-4 py-6">
+              <div className="space-y-6">
                 {thread.messages.length === 0 ? (
-                  <p className="text-sm text-zinc-500">
-                    まだメッセージがありません。最初のアクションを記録しましょう。
-                  </p>
+                  <div className="flex h-64 items-center justify-center">
+                    <p className="text-center text-sm text-zinc-400">
+                      まだメッセージがありません。<br />最初のアクションを記録しましょう。
+                    </p>
+                  </div>
                 ) : (
                   thread.messages.map((message) => {
                     const isOwn = message.author.id === session.memberId;
@@ -138,28 +149,29 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
                       >
                         <article
                           id={`message-${message.id}`}
-                          className={`max-w-[75%] rounded-2xl border px-4 py-3 shadow-sm ${
+                          className={`max-w-[750px] rounded-2xl border px-5 py-4 shadow-sm ${
                             isFocused ? "ring-2 ring-sky-300" : ""
                           } ${bubbleClasses}`}
                         >
-                          <div
-                            className={`flex flex-col text-xs ${
-                              isOwn ? "items-end text-white/80" : "text-zinc-500"
-                            }`}
-                          >
+                          <div className="flex items-baseline justify-between gap-3">
                             <span
-                              className={`font-semibold ${
-                                isOwn ? "text-white" : "text-zinc-700"
+                              className={`text-sm font-semibold ${
+                                isOwn ? "text-white" : "text-zinc-900"
                               }`}
                             >
                               {message.author.displayName}
                             </span>
-                            <time dateTime={message.createdAt.toISOString()}>
+                            <time
+                              dateTime={message.createdAt.toISOString()}
+                              className={`text-xs ${
+                                isOwn ? "text-white/70" : "text-zinc-400"
+                              }`}
+                            >
                               {formatter.format(message.createdAt)}
                             </time>
                           </div>
                           <p
-                            className={`mt-2 whitespace-pre-wrap break-words text-sm ${
+                            className={`mt-2 whitespace-pre-wrap break-words text-[15px] leading-relaxed ${
                               isOwn ? "text-white" : "text-zinc-800"
                             }`}
                           >
@@ -182,12 +194,21 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
                   })
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* 入力エリア（画面下部固定） */}
+          <div className="flex-shrink-0 border-t border-zinc-200 bg-white px-4 py-4">
+            <div className="mx-auto max-w-4xl">
               <ChatInput threadId={threadIdString} />
             </div>
-          </section>
+          </div>
+        </div>
 
-          <aside className="rounded-2xl border border-zinc-200 bg-white/90 p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-zinc-900">
+        {/* サイドバー（ToDoリスト） */}
+        <aside className="w-80 flex-shrink-0 border-l border-zinc-200 bg-white overflow-y-auto">
+          <div className="p-6">
+            <h2 className="text-base font-semibold text-zinc-900">
               このThreadから生まれたToDo
             </h2>
             {todos.length === 0 ? (
@@ -197,16 +218,16 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
             ) : (
               <ul className="mt-4 space-y-3">
                 {todos.map((todo) => (
-                  <li key={todo.id} className="rounded-xl border border-zinc-100 p-3 text-sm">
-                    <p className="font-semibold text-zinc-800">{todo.title}</p>
-                    <p className="text-xs text-zinc-500">
+                  <li key={todo.id} className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-sm">
+                    <p className="font-semibold text-zinc-900">{todo.title}</p>
+                    <p className="mt-1 text-xs text-zinc-500">
                       {formatter.format(todo.createdAt)} /{" "}
                       {TODO_STATUS_LABELS[todo.status as keyof typeof TODO_STATUS_LABELS] ??
                         todo.status}
                     </p>
                     <Link
                       href={`/todo?focus=${todo.id}`}
-                      className="mt-1 inline-flex text-xs text-sky-600 underline"
+                      className="mt-2 inline-flex text-xs text-sky-600 underline hover:text-sky-700"
                     >
                       ToDoを開く
                     </Link>
@@ -214,8 +235,8 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
                 ))}
               </ul>
             )}
-          </aside>
-        </div>
+          </div>
+        </aside>
       </div>
     </div>
   );
