@@ -165,6 +165,7 @@ model AccountingSetting {
   approvalFlow         String?
   carryoverAmount      Int      @default(0)
   budgetEnabled        Boolean  @default(true)
+  accountingEnabled    Boolean  @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }

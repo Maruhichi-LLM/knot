@@ -223,24 +223,18 @@ export default async function LedgerPage() {
     id: string;
     label: string;
     description: string;
-  }> = [
-    {
-      id: "accounting-register",
-      label: "会計の登録",
-      description: "モジュールの使い方とショートカット",
-    },
-  ];
+  }> = [];
 
   if (isAccountingEnabled) {
-    navigationItems.push({
-      id: "ledger-list",
-      label: "経費一覧",
-      description: `${ledgerCountLabel}の履歴`,
-    });
     navigationItems.push({
       id: "ledger-create",
       label: "申請の作成",
       description: "証憑を登録して承認を依頼",
+    });
+    navigationItems.push({
+      id: "ledger-list",
+      label: "経費一覧",
+      description: `${ledgerCountLabel}の履歴`,
     });
   } else {
     navigationItems.push({
@@ -302,15 +296,15 @@ export default async function LedgerPage() {
   };
   const sections: Array<{ id: string; content: ReactNode }> = [
     {
-      id: "accounting-register",
+      id: "accounting-status",
       content: (
         <section
-          key="accounting-register-section"
+          key="accounting-status-section"
           className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
         >
-          <h2 className="text-lg font-semibold text-zinc-900">会計の登録</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">現在の状況</h2>
           <p className="mt-2 text-sm text-zinc-600">
-            経費申請、承認、マスタの整備はここから行います。必要な画面を左メニューから選択してください。
+            経費申請の進捗や決算状況、主要ショートカットをまとめて確認できます。
           </p>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
@@ -640,7 +634,7 @@ export default async function LedgerPage() {
       key="accounting-summary"
       className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
     >
-      <h2 className="text-base font-semibold text-zinc-900">現在の会計設定</h2>
+      <h2 className="text-base font-semibold text-zinc-900">現在の状況</h2>
       <dl className="mt-4 space-y-3 text-sm text-zinc-600">
         <div className="flex items-center justify-between">
           <dt className="text-zinc-500">決算月</dt>
