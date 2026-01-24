@@ -44,12 +44,6 @@ async function saveAccountingSettingsAction(formData: FormData) {
   const approvalFlow =
     (formData.get("approvalFlow") as string | null)?.trim() || null;
   const carryover = Number(formData.get("carryoverAmount") ?? 0);
-  const budgetEnabledInput =
-    (formData.get("budgetEnabled") as string | null) ?? "yes";
-  const budgetEnabled = budgetEnabledInput === "yes";
-  const accountingEnabledInput =
-    (formData.get("accountingEnabled") as string | null) ?? "yes";
-  const accountingEnabled = accountingEnabledInput === "yes";
 
   if (
     !Number.isInteger(startMonth) ||
@@ -76,8 +70,6 @@ async function saveAccountingSettingsAction(formData: FormData) {
         fiscalYearEndMonth: endMonth,
         approvalFlow,
         carryoverAmount,
-        budgetEnabled,
-        accountingEnabled,
       },
       create: {
         groupId: session.groupId,
@@ -85,11 +77,39 @@ async function saveAccountingSettingsAction(formData: FormData) {
         fiscalYearEndMonth: endMonth,
         approvalFlow,
         carryoverAmount,
-        budgetEnabled,
-        accountingEnabled,
       },
     }),
   ]);
+
+  revalidatePath("/accounting");
+  revalidatePath("/management");
+}
+
+async function toggleBudgetStatusAction(formData: FormData) {
+  "use server";
+  const { session } = await requireAdminSession();
+  const nextState = String(formData.get("nextState") ?? "");
+  const enable = nextState === "enable";
+
+  const group = await prisma.group.findUnique({
+    where: { id: session.groupId },
+    select: { fiscalYearStartMonth: true },
+  });
+  const startMonth = group?.fiscalYearStartMonth ?? 4;
+  const endMonth = ((startMonth + 10) % 12) + 1 || 12;
+
+  await prisma.accountingSetting.upsert({
+    where: { groupId: session.groupId },
+    update: { budgetEnabled: enable },
+    create: {
+      groupId: session.groupId,
+      fiscalYearStartMonth: startMonth,
+      fiscalYearEndMonth: endMonth,
+      approvalFlow: null,
+      carryoverAmount: 0,
+      budgetEnabled: enable,
+    },
+  });
 
   revalidatePath("/accounting");
   revalidatePath("/management");
@@ -199,10 +219,7 @@ export default async function LedgerPage() {
     approvalFlow: "",
     carryoverAmount: 0,
     budgetEnabled: true,
-    accountingEnabled: true,
   };
-
-  const isAccountingEnabled = setting.accountingEnabled !== false;
   const allAccounts = data.accounts ?? [];
   const defaultAccounts = allAccounts.filter((account) => !account.isCustom);
   const customAccounts = allAccounts.filter((account) => account.isCustom);
@@ -212,6 +229,9 @@ export default async function LedgerPage() {
     type: account.type,
   }));
   const ledgerCountLabel = `${data.ledgers.length}件`;
+  const pendingLedgerCountLabel = `${
+    data.ledgers.filter((ledger) => ledger.status === "PENDING").length
+  }件`;
   const closingMonthLabel = `${setting.fiscalYearEndMonth}月`;
   const approvalFlowSummary = setting.approvalFlow?.trim() ?? "";
   const numberFormatter = new Intl.NumberFormat("ja-JP");
@@ -224,32 +244,24 @@ export default async function LedgerPage() {
   const carryoverAmountLabel = `${numberFormatter.format(
     setting.carryoverAmount ?? 0
   )}円`;
-  const accountingStatusLabel = isAccountingEnabled ? "有効" : "停止中";
-  const budgetStatusLabel = setting.budgetEnabled === false ? "停止中" : "有効";
+  const isBudgetEnabled = setting.budgetEnabled !== false;
+  const budgetStatusLabel = isBudgetEnabled ? "有効" : "停止中";
   const navigationItems: Array<{
     id: string;
     label: string;
     description: string;
   }> = [];
 
-  if (isAccountingEnabled) {
-    navigationItems.push({
-      id: "ledger-create",
-      label: "申請の作成",
-      description: "証憑を登録して承認を依頼",
-    });
-    navigationItems.push({
-      id: "ledger-list",
-      label: "経費一覧",
-      description: `${ledgerCountLabel}の履歴`,
-    });
-  } else {
-    navigationItems.push({
-      id: "ledger-disabled",
-      label: "会計機能",
-      description: "管理者が有効化すると利用を開始できます",
-    });
-  }
+  navigationItems.push({
+    id: "ledger-create",
+    label: "申請の作成",
+    description: "証憑を登録して承認を依頼",
+  });
+  navigationItems.push({
+    id: "ledger-list",
+    label: "経費一覧",
+    description: `${ledgerCountLabel}の履歴`,
+  });
 
   if (canManage) {
     navigationItems.push({
@@ -283,22 +295,7 @@ export default async function LedgerPage() {
       Knot Accounting の設定変更は管理者のみが利用できます。権限が必要な場合は団体の管理者に連絡してください。
     </section>
   );
-  const accountingDisabledNotice = (
-    <section
-      key="accounting-disabled-section"
-      className="rounded-2xl border border-dashed border-zinc-200 bg-white/70 p-6 text-sm text-zinc-600"
-    >
-      この団体では現在会計機能を利用していません。管理者が{" "}
-      <Link href="/management" className="font-semibold text-sky-700">
-        Knot Management
-      </Link>
-      で会計機能を有効化すると、申請や承認、残高管理を開始できます。
-    </section>
-  );
   const renderLedgerCreateSection = (title: string, description: string) => {
-    if (!isAccountingEnabled) {
-      return accountingDisabledNotice;
-    }
     return (
       <section
         key="ledger-create-section"
@@ -404,39 +401,32 @@ export default async function LedgerPage() {
     },
   ];
 
-  if (isAccountingEnabled) {
-    sections.push({
-      id: "ledger-list",
-      content: (
-        <section
-          key="ledger-list-section"
-          className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
-        >
-          <h2 className="text-lg font-semibold text-zinc-900">経費一覧</h2>
-          <div className="mt-4">
-            <LedgerList
-              ledgers={data.ledgers as LedgerDisplay[]}
-              canApprove={data.member?.role === ROLE_ADMIN}
-              accounts={accountOptions}
-              groupId={session.groupId}
-            />
-          </div>
-        </section>
-      ),
-    });
-    sections.push({
-      id: "ledger-create",
-      content: renderLedgerCreateSection(
-        "入出金の記録",
-        "証憑やメモを入力して承認を依頼します。下書き保存は経費一覧から行えます。"
-      ),
-    });
-  } else {
-    sections.push({
-      id: "ledger-disabled",
-      content: accountingDisabledNotice,
-    });
-  }
+  sections.push({
+    id: "ledger-list",
+    content: (
+      <section
+        key="ledger-list-section"
+        className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+      >
+        <h2 className="text-lg font-semibold text-zinc-900">経費一覧</h2>
+        <div className="mt-4">
+          <LedgerList
+            ledgers={data.ledgers as LedgerDisplay[]}
+            canApprove={data.member?.role === ROLE_ADMIN}
+            accounts={accountOptions}
+            groupId={session.groupId}
+          />
+        </div>
+      </section>
+    ),
+  });
+  sections.push({
+    id: "ledger-create",
+    content: renderLedgerCreateSection(
+      "入出金の記録",
+      "証憑やメモを入力して承認を依頼します。下書き保存は経費一覧から行えます。"
+    ),
+  });
 
   if (canManage) {
     sections.push({
@@ -492,52 +482,6 @@ export default async function LedgerPage() {
                   className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                 />
               </label>
-            </div>
-            <div className="text-sm text-zinc-600">
-              <p>会計機能を利用しますか？</p>
-              <div className="mt-2 flex gap-4">
-                <label className="inline-flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="accountingEnabled"
-                    value="yes"
-                    defaultChecked={isAccountingEnabled}
-                  />
-                  <span>はい（会計機能を使う）</span>
-                </label>
-                <label className="inline-flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="accountingEnabled"
-                    value="no"
-                    defaultChecked={!isAccountingEnabled}
-                  />
-                  <span>いいえ（会計機能を使わない）</span>
-                </label>
-              </div>
-            </div>
-            <div className="text-sm text-zinc-600">
-              <p>予算管理を利用しますか？</p>
-              <div className="mt-2 flex gap-4">
-                <label className="inline-flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="budgetEnabled"
-                    value="yes"
-                    defaultChecked={setting.budgetEnabled !== false}
-                  />
-                  <span>はい（予算機能を使う）</span>
-                </label>
-                <label className="inline-flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="budgetEnabled"
-                    value="no"
-                    defaultChecked={setting.budgetEnabled === false}
-                  />
-                  <span>いいえ（予算機能を使わない）</span>
-                </label>
-              </div>
             </div>
             <label className="block text-sm text-zinc-600">
               承認フローのメモ
@@ -665,6 +609,42 @@ export default async function LedgerPage() {
           <p className="mt-2 text-sm text-zinc-600">
             予算機能の ON/OFF と運用ルールを確認します。会計年度の計画や配分方針をチームと共有してから変更してください。
           </p>
+          <form
+            action={toggleBudgetStatusAction}
+            className="mt-4 max-w-sm"
+          >
+            <input
+              type="hidden"
+              name="nextState"
+              value={isBudgetEnabled ? "disable" : "enable"}
+            />
+            <button
+              type="submit"
+              className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+                isBudgetEnabled
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-zinc-200 bg-white text-zinc-600"
+              } hover:border-sky-200 hover:bg-sky-50`}
+            >
+              <span>
+                {isBudgetEnabled
+                  ? "予算機能を停止する"
+                  : "予算機能を有効にする"}
+              </span>
+              <span
+                aria-hidden="true"
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                  isBudgetEnabled ? "bg-sky-600" : "bg-zinc-300"
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                    isBudgetEnabled ? "translate-x-5" : "translate-x-1"
+                  }`}
+                />
+              </span>
+            </button>
+          </form>
           <dl className="mt-6 grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
               <dt className="text-xs uppercase tracking-wide text-zinc-500">
@@ -730,9 +710,9 @@ export default async function LedgerPage() {
           <dd className="font-semibold text-zinc-900">{closingMonthLabel}</dd>
         </div>
         <div className="flex items-center justify-between">
-          <dt className="text-zinc-500">会計機能</dt>
+          <dt className="text-zinc-500">承認待ち件数</dt>
           <dd className="font-semibold text-zinc-900">
-            {accountingStatusLabel}
+            {pendingLedgerCountLabel}
           </dd>
         </div>
         <div className="flex items-center justify-between">
