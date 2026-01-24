@@ -17,7 +17,7 @@ type Props = {
   navigationItems: NavigationItem[];
   sections: SectionDefinition[];
   defaultSectionId: string;
-  summaryCard: ReactNode;
+  summaryCard?: ReactNode;
 };
 
 export function AccountingLayout({
@@ -81,7 +81,7 @@ export function AccountingLayout({
             })}
           </ul>
         </section>
-        {summaryCard}
+        {summaryCard ? summaryCard : null}
       </div>
       <div className="flex w-full flex-col gap-8 lg:max-w-none">
         <div className="w-full">

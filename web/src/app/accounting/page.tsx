@@ -1003,37 +1003,6 @@ export default async function LedgerPage({ searchParams }: PageProps) {
     }
   }
 
-  const summaryCard = (
-    <section
-      key="accounting-summary"
-      className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
-    >
-      <h2 className="text-base font-semibold text-zinc-900">現在の状況</h2>
-      <dl className="mt-4 space-y-3 text-sm text-zinc-600">
-        <div className="flex items-center justify-between">
-          <dt className="text-zinc-500">決算月</dt>
-          <dd className="font-semibold text-zinc-900">{closingMonthLabel}</dd>
-        </div>
-        <div className="flex items-center justify-between">
-          <dt className="text-zinc-500">承認待ち件数</dt>
-          <dd className="font-semibold text-zinc-900">
-            {pendingLedgerCountLabel}
-          </dd>
-        </div>
-        <div className="flex items-center justify-between">
-          <dt className="text-zinc-500">予算管理</dt>
-          <dd className="font-semibold text-zinc-900">{budgetStatusLabel}</dd>
-        </div>
-        <div className="flex items-center justify-between">
-          <dt className="text-zinc-500">前期繰越</dt>
-          <dd className="font-semibold text-zinc-900">
-            {carryoverAmountLabel}
-          </dd>
-        </div>
-      </dl>
-    </section>
-  );
-
   return (
     <div className="min-h-screen py-10">
       <div className="page-shell flex flex-col gap-6">
@@ -1083,7 +1052,6 @@ export default async function LedgerPage({ searchParams }: PageProps) {
             navigationItems={navigationItems}
             sections={sections}
             defaultSectionId={defaultSectionId}
-            summaryCard={summaryCard}
           />
         </div>
       </div>
