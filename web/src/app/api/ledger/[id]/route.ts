@@ -25,7 +25,7 @@ function resolveLedgerId(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSessionFromCookies();
   if (!session) {
@@ -34,7 +34,8 @@ export async function PATCH(
 
   const body = ((await request.json().catch(() => ({}))) ??
     {}) as UpdateLedgerRequest;
-  const id = resolveLedgerId(params.id, body.ledgerId);
+  const { id: paramId } = await params;
+  const id = resolveLedgerId(paramId, body.ledgerId);
   if (id === null) {
     return NextResponse.json({ error: "Invalid ledger id" }, { status: 400 });
   }
@@ -90,4 +91,49 @@ export async function PATCH(
   revalidatePath("/accounting");
 
   return NextResponse.json({ success: true, ledger: updatedLedger });
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSessionFromCookies();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const ledgerId = resolveLedgerId(id);
+  if (ledgerId === null) {
+    return NextResponse.json({ error: "Invalid ledger id" }, { status: 400 });
+  }
+
+  const ledger = await prisma.ledger.findFirst({
+    where: { id: ledgerId, groupId: session.groupId },
+  });
+
+  if (!ledger) {
+    return NextResponse.json({ error: "対象が見つかりません。" }, { status: 404 });
+  }
+
+  if (ledger.status !== "REJECTED") {
+    return NextResponse.json(
+      { error: "却下された経費のみ削除できます。" },
+      { status: 400 }
+    );
+  }
+
+  // 関連する承認レコードも一緒に削除
+  await prisma.$transaction([
+    prisma.approval.deleteMany({
+      where: { ledgerId: ledger.id },
+    }),
+    prisma.ledger.delete({
+      where: { id: ledger.id },
+    }),
+  ]);
+
+  revalidatePath("/accounting");
+
+  return NextResponse.json({ success: true });
 }

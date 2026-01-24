@@ -138,6 +138,9 @@ export function LedgerList({ ledgers, canApprove, accounts, groupId }: Props) {
           {ledger.status === "DRAFT" ? (
             <DraftFinalizeForm ledger={ledger} accounts={accounts} />
           ) : null}
+          {ledger.status === "REJECTED" ? (
+            <RejectedActions ledgerId={ledger.id} />
+          ) : null}
 
           {ledger.approvals.length > 0 ? (
             <div className="mt-4 rounded-lg bg-zinc-50 p-4 text-sm text-zinc-600">
@@ -472,5 +475,121 @@ function DraftFinalizeForm({
         {isSubmitting ? "申請中..." : "申請に進む"}
       </button>
     </form>
+  );
+}
+
+function RejectedActions({ ledgerId }: { ledgerId: number }) {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [isReverting, setIsReverting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  async function handleRevert() {
+    setIsReverting(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/ledger/${ledgerId}/revert`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        setError(data.error ?? "処理に失敗しました。");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("通信エラーが発生しました。");
+    } finally {
+      setIsReverting(false);
+    }
+  }
+
+  async function handleDelete() {
+    setIsDeleting(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/ledger/${ledgerId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        setError(data.error ?? "削除に失敗しました。");
+        return;
+      }
+      setShowDeleteConfirm(false);
+      router.refresh();
+    } catch {
+      setError("通信エラーが発生しました。");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="mt-4 space-y-3">
+        {error ? (
+          <p className="text-sm text-red-600" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleRevert}
+            disabled={isReverting || isDeleting}
+            className="flex-1 rounded-lg bg-amber-600 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isReverting ? "処理中..." : "修正して再申請"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={isReverting || isDeleting}
+            className="flex-1 rounded-lg bg-zinc-600 py-2 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            削除
+          </button>
+        </div>
+      </div>
+
+      {/* 削除確認モーダル */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="max-w-md w-full rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-zinc-900">
+              経費の削除
+            </h3>
+            <p className="mt-2 text-sm text-zinc-600">
+              この経費を削除します。この操作は取り消せません。よろしいですか？
+            </p>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+                className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isDeleting ? "削除中..." : "削除する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

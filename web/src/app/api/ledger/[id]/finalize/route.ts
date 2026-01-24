@@ -41,7 +41,7 @@ function resolveLedgerId(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSessionFromCookies();
   if (!session) {
@@ -50,7 +50,8 @@ export async function POST(
 
   const payload = ((await request.json().catch(() => ({}))) ??
     {}) as FinalizeLedgerRequest;
-  const id = resolveLedgerId(params.id, payload.ledgerId);
+  const { id: paramId } = await params;
+  const id = resolveLedgerId(paramId, payload.ledgerId);
   if (id === null) {
     return NextResponse.json({ error: "Invalid ledger id" }, { status: 400 });
   }
