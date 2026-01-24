@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { LedgerList, type LedgerDisplay } from "@/components/ledger-list";
 import { LedgerCreateForm } from "@/components/ledger-create-form";
+import { ConfirmSubmitForm } from "@/components/confirm-submit-form";
 import { ROLE_ADMIN } from "@/lib/roles";
 import { ensureModuleEnabled } from "@/lib/modules";
 import { KNOT_CALENDAR_PATH } from "@/lib/routes";
@@ -443,7 +444,12 @@ export default async function LedgerPage() {
           <p className="mt-2 text-sm text-zinc-600">
             会計期間、承認ステップ、前期繰越金、予算機能をまとめて設定します。
           </p>
-          <form action={saveAccountingSettingsAction} className="mt-4 space-y-4">
+          <ConfirmSubmitForm
+            action={saveAccountingSettingsAction}
+            className="mt-4 space-y-4"
+            title="会計年度と承認フロー"
+            message="この内容で保存しますか？"
+          >
             <div className="space-y-4">
               <label className="block text-sm text-zinc-600">
                 期首
@@ -500,7 +506,7 @@ export default async function LedgerPage() {
                 設定を保存
               </button>
             </div>
-          </form>
+          </ConfirmSubmitForm>
         </section>
       ),
     });
