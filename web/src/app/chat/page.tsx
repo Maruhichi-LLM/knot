@@ -71,10 +71,10 @@ export default async function ChatPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold text-zinc-900">
-                OPEN Thread
+                スレッドをひらく
               </h2>
               <p className="text-sm text-zinc-600">
-                最新の更新順で並びます。ToDo・会計・ドキュメントなどから自動生成されたThreadもここに集まります。
+                最新の更新順で並びます。ToDo・会計・ドキュメントなどから自動生成されたスレッドもここに集まります。
               </p>
             </div>
           </div>

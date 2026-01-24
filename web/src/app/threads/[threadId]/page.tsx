@@ -26,6 +26,33 @@ const formatter = new Intl.DateTimeFormat("ja-JP", {
   timeStyle: "short",
 });
 
+// メンションをハイライト表示するコンポーネント
+function MessageWithMentions({ text, isOwn }: { text: string; isOwn: boolean }) {
+  const parts = text.split(/(@[\w\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+)/g);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.startsWith("@")) {
+          return (
+            <span
+              key={index}
+              className={`font-semibold ${
+                isOwn
+                  ? "bg-sky-700 px-1 rounded"
+                  : "bg-sky-100 text-sky-700 px-1 rounded"
+              }`}
+            >
+              {part}
+            </span>
+          );
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 type PageProps = {
   params: Promise<{ threadId: string }>;
   searchParams?: Promise<{ message?: string }>;
@@ -63,7 +90,7 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
     redirect("/chat");
   }
 
-  const [todos] = await Promise.all([
+  const [todos, members] = await Promise.all([
     prisma.todoItem.findMany({
       where: { groupId: session.groupId, sourceThreadId: thread.id },
       orderBy: { createdAt: "desc" },
@@ -72,6 +99,15 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
         title: true,
         status: true,
         createdAt: true,
+      },
+    }),
+    prisma.member.findMany({
+      where: { groupId: session.groupId },
+      orderBy: { displayName: "asc" },
+      select: {
+        id: true,
+        displayName: true,
+        role: true,
       },
     }),
   ]);
@@ -119,6 +155,38 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
 
       {/* メインコンテンツ */}
       <div className="flex flex-1 overflow-hidden">
+        {/* サイドバー（メンバーリスト） */}
+        <aside className="w-64 flex-shrink-0 border-r border-zinc-200 bg-white overflow-y-auto">
+          <div className="p-6">
+            <h2 className="text-base font-semibold text-zinc-900">
+              メンバー
+            </h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              {members.length}人がこのグループに参加
+            </p>
+            <ul className="mt-4 space-y-2">
+              {members.map((member) => (
+                <li
+                  key={member.id}
+                  className="flex items-center gap-3 rounded-lg p-2 hover:bg-zinc-50"
+                >
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-700">
+                    {member.displayName.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-zinc-900 truncate">
+                      {member.displayName}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      {member.role === "ADMIN" ? "管理者" : "メンバー"}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </aside>
+
         {/* チャットエリア */}
         <div className="flex flex-1 flex-col">
           {/* メッセージエリア */}
@@ -175,7 +243,7 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
                               isOwn ? "text-white" : "text-zinc-800"
                             }`}
                           >
-                            {message.body}
+                            <MessageWithMentions text={message.body} isOwn={isOwn} />
                           </p>
                           <div className={`mt-3 flex ${isOwn ? "justify-end" : "justify-start"}`}>
                             <ChatMessageActions
@@ -200,7 +268,13 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
           {/* 入力エリア（画面下部固定） */}
           <div className="flex-shrink-0 border-t border-zinc-200 bg-white px-4 py-4">
             <div className="mx-auto max-w-4xl">
-              <ChatInput threadId={threadIdString} />
+              <ChatInput
+                threadId={threadIdString}
+                members={members.map(m => ({
+                  id: m.id,
+                  displayName: m.displayName
+                }))}
+              />
             </div>
           </div>
         </div>
