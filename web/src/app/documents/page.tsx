@@ -78,7 +78,7 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
     <div className="min-h-screen py-10">
       <div className="page-shell space-y-8">
         <section className="rounded-2xl border border-sky-200 bg-sky-50 p-6 text-sm text-sky-900 shadow-sm">
-          Knot Document は団体の“確定版（最終版）”を保存する場所です。編集途中のファイルではなく、確定した文書を保存してください。
+          Knot Document は団体の規定・規約・議事録・収支計算書など“確定版（最終版）”を保存する場所です。編集途中のファイルではなく、確定した文書を保存してください。
         </section>
 
         <section className="rounded-2xl border border-white bg-white p-6 shadow-sm">
