@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
-import { ensureModuleEnabled } from "@/lib/modules";
+import { ensureModuleEnabled, isModuleEnabled } from "@/lib/modules";
 import { CalendarCreatePanel } from "@/components/calendar-create-panel";
 
 const WEEK_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -183,9 +183,10 @@ export default async function CalendarPage({
   }
 
   const range = buildRange(displayMonth);
-  const [groupEvents, personalEvents] = await Promise.all([
+  const [groupEvents, personalEvents, budgetEnabled] = await Promise.all([
     fetchMonthlyEvents(member.groupId, range),
     fetchPersonalEvents(session.memberId, range),
+    isModuleEnabled(session.groupId, "event-budget"),
   ]);
   const combinedEvents: MonthlyEvent[] = [
     ...groupEvents.map((event) => ({ ...event, calendar: "group" as const })),
@@ -261,6 +262,7 @@ export default async function CalendarPage({
                 dateString={addDateString}
                 memberName={member.displayName}
                 groupName={member.group.name}
+                budgetEnabled={budgetEnabled}
               />
             </div>
           ) : null}

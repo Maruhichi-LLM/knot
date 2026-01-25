@@ -7,6 +7,7 @@ type Props = {
   dateString: string;
   memberName: string;
   groupName: string;
+  budgetEnabled?: boolean;
 };
 
 const TARGETS = [
@@ -18,10 +19,12 @@ export function CalendarCreatePanel({
   dateString,
   memberName,
   groupName,
+  budgetEnabled,
 }: Props) {
   const router = useRouter();
   const [target, setTarget] = useState<"group" | "personal">("group");
   const [title, setTitle] = useState("");
+  const [createBudget, setCreateBudget] = useState(false);
   const defaultStart = `${dateString}T09:00`;
   const defaultEnd = `${dateString}T10:00`;
   const [startsAt, setStartsAt] = useState(defaultStart);
@@ -59,6 +62,38 @@ export function CalendarCreatePanel({
           error?: string;
         };
         setError(data.error ?? "予定の作成に失敗しました。");
+        return;
+      }
+      router.push("/calendar");
+    } catch {
+      setError("通信エラーが発生しました。");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleGroupSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description,
+          location,
+          startsAt,
+          endsAt,
+          ...(budgetEnabled ? { createBudget } : {}),
+        }),
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        setError(data.error ?? "イベントの作成に失敗しました。");
         return;
       }
       router.push("/calendar");
@@ -118,21 +153,106 @@ export function CalendarCreatePanel({
         </div>
 
         {target === "group" ? (
-          <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm text-sky-900">
-            <p className="font-semibold">所属団体のカレンダーに登録します。</p>
-            <p className="mt-2">
-              次の画面で、詳細なイベント情報を入力して保存してください。
+          <form
+            onSubmit={handleGroupSubmit}
+            className="space-y-3 rounded-2xl border border-sky-200 bg-white p-4 shadow-sm"
+          >
+            <p className="text-sm font-semibold text-sky-700">
+              団体イベントを追加
             </p>
+            <label className="block text-sm text-zinc-600">
+              タイトル
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                required
+              />
+            </label>
+            <label className="block text-sm text-zinc-600">
+              説明
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                rows={2}
+              />
+            </label>
+            <label className="block text-sm text-zinc-600">
+              場所
+              <input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+              />
+            </label>
+            <label className="block text-sm text-zinc-600">
+              開始日時
+              <input
+                type="datetime-local"
+                value={startsAt}
+                onChange={(e) => setStartsAt(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                required
+              />
+            </label>
+            <label className="block text-sm text-zinc-600">
+              終了日時（任意）
+              <input
+                type="datetime-local"
+                value={endsAt ?? ""}
+                onChange={(e) => setEndsAt(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+              />
+            </label>
+            {budgetEnabled ? (
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-zinc-900">
+                      イベント別収支管理
+                    </p>
+                    <p className="mt-0.5 text-xs text-zinc-600">
+                      このイベントの収入・支出を個別に管理します
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCreateBudget(!createBudget)}
+                    className="ml-4"
+                    aria-label={
+                      createBudget ? "収支管理を無効化" : "収支管理を有効化"
+                    }
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                        createBudget ? "bg-sky-600" : "bg-zinc-300"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                          createBudget ? "translate-x-5" : "translate-x-1"
+                        }`}
+                      />
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {error ? (
+              <p className="text-sm text-red-600" role="alert">
+                {error}
+              </p>
+            ) : null}
             <button
-              type="button"
-              onClick={() =>
-                router.push(`/events?date=${dateString}#create-event`)
-              }
-              className="mt-4 w-full rounded-lg bg-sky-600 py-2 text-white transition hover:bg-sky-700"
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full rounded-lg bg-sky-600 py-2 text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-300"
             >
-              イベント作成画面へ進む
+              {isSubmitting ? "登録中..." : "この内容で登録する"}
             </button>
-          </div>
+          </form>
         ) : (
           <form
             onSubmit={handlePersonalSubmit}
