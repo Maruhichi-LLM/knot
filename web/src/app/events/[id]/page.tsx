@@ -190,7 +190,25 @@ export default async function EventDetailPage({
           <EventBudgetSection
             eventId={event.id}
             eventTitle={event.title}
-            eventBudget={event.budget}
+            eventBudget={
+              event.budget
+                ? {
+                    ...event.budget,
+                    confirmedAt: event.budget.confirmedAt?.toISOString() ?? null,
+                    importedToLedgerAt:
+                      event.budget.importedToLedgerAt?.toISOString() ?? null,
+                    transactions: event.budget.transactions.map((tx) => ({
+                      ...tx,
+                      transactionDate: tx.transactionDate.toISOString(),
+                      createdAt: tx.createdAt.toISOString(),
+                    })),
+                    imports: event.budget.imports.map((imp) => ({
+                      ...imp,
+                      importedAt: imp.importedAt.toISOString(),
+                    })),
+                  }
+                : null
+            }
             groupId={session.groupId}
             canEdit={canEdit}
           />

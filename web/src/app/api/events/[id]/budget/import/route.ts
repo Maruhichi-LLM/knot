@@ -12,7 +12,7 @@ type ImportRequest = {
 // 本会計への取り込み
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ eventId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSessionFromCookies();
   if (!session) {
@@ -21,7 +21,7 @@ export async function POST(
 
   await ensureEventBudgetEnabled(session.groupId);
 
-  const { eventId: eventIdString } = await params;
+  const { id: eventIdString } = await params;
   const eventId = Number(eventIdString);
 
   const eventBudget = await prisma.eventBudget.findFirst({

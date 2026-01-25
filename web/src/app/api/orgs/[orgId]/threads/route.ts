@@ -38,9 +38,10 @@ async function requireOrgSession(orgIdParam: string) {
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { orgId: string } }
+  { params }: { params: Promise<{ orgId: string }> }
 ) {
-  const context = await requireOrgSession(params.orgId);
+  const { orgId: orgIdParam } = await params;
+  const context = await requireOrgSession(orgIdParam);
   if ("error" in context) {
     return context.error;
   }
@@ -54,9 +55,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orgId: string } }
+  { params }: { params: Promise<{ orgId: string }> }
 ) {
-  const context = await requireOrgSession(params.orgId);
+  const { orgId: orgIdParam } = await params;
+  const context = await requireOrgSession(orgIdParam);
   if ("error" in context) {
     return context.error;
   }
@@ -122,6 +124,10 @@ export async function POST(
       });
       createdThread = true;
     }
+  }
+
+  if (!thread) {
+    return NextResponse.json({ error: "Failed to create thread" }, { status: 500 });
   }
 
   if (

@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache";
 import { AccountingLayout } from "@/components/accounting-layout";
 import { BudgetInputField } from "@/components/budget-input-field";
 import { AccountingSettingsForm } from "@/components/accounting-settings-form";
+import { AccountType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -213,7 +214,7 @@ async function createAccountAction(formData: FormData) {
     data: {
       groupId: session.groupId,
       name,
-      type,
+      type: type as AccountType,
       isCustom: true,
       order,
     },

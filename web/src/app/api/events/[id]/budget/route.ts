@@ -18,7 +18,7 @@ type UpdateBudgetRequest = {
 // EventBudget作成
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ eventId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSessionFromCookies();
   if (!session) {
@@ -27,7 +27,7 @@ export async function POST(
 
   await ensureEventBudgetEnabled(session.groupId);
 
-  const { eventId: eventIdString } = await params;
+  const { id: eventIdString } = await params;
   const eventId = Number(eventIdString);
 
   const event = await prisma.event.findFirst({
@@ -68,14 +68,14 @@ export async function POST(
 // EventBudget取得
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ eventId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSessionFromCookies();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { eventId: eventIdString } = await params;
+  const { id: eventIdString } = await params;
   const eventId = Number(eventIdString);
 
   const eventBudget = await prisma.eventBudget.findFirst({
@@ -123,7 +123,7 @@ export async function GET(
 // EventBudget更新（予算・状態）
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ eventId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSessionFromCookies();
   if (!session) {
@@ -132,7 +132,7 @@ export async function PATCH(
 
   await ensureEventBudgetEnabled(session.groupId);
 
-  const { eventId: eventIdString } = await params;
+  const { id: eventIdString } = await params;
   const eventId = Number(eventIdString);
 
   const eventBudget = await prisma.eventBudget.findFirst({

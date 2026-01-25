@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 // EventTransaction削除
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ eventId: string; transactionId: string }> }
+  { params }: { params: Promise<{ id: string; transactionId: string }> }
 ) {
   const session = await getSessionFromCookies();
   if (!session) {

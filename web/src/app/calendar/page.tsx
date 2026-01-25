@@ -67,11 +67,10 @@ async function fetchPersonalEvents(memberId: number, range: { start: Date; end: 
 }
 
 type PersonalEvent = Awaited<ReturnType<typeof fetchPersonalEvents>>[number];
-type MonthlyEvent =
-  | (Awaited<ReturnType<typeof fetchMonthlyEvents>>[number] & {
-      calendar: "group";
-    })
-  | (PersonalEvent & { calendar: "personal" });
+type GroupEvent = Awaited<ReturnType<typeof fetchMonthlyEvents>>[number] & {
+  calendar: "group";
+};
+type MonthlyEvent = GroupEvent | (PersonalEvent & { calendar: "personal" });
 
 type CalendarDay = {
   key: string;
@@ -130,7 +129,7 @@ function buildCalendar(reference: Date, events: MonthlyEvent[]): CalendarDay[] {
   return days;
 }
 
-function summarizeAttendance(attendances: MonthlyEvent["attendances"]) {
+function summarizeAttendance(attendances: GroupEvent["attendances"]) {
   return (
     attendances?.reduce(
       (acc, attendance) => {

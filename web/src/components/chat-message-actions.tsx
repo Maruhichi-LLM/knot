@@ -74,12 +74,16 @@ export function ChatMessageActions({
         const data = (await response.json().catch(() => ({}))) as
           | ConversionResponse
           | { error?: string };
-        if (!response.ok || !data || "error" in data || !data.target) {
-          setError(
-            "error" in data && data.error
-              ? data.error
-              : "変換に失敗しました。"
-          );
+        if (!response.ok || !data) {
+          setError("変換に失敗しました。");
+          return;
+        }
+        if ("error" in data) {
+          setError(data.error ?? "変換に失敗しました。");
+          return;
+        }
+        if (!("target" in data) || !data.target) {
+          setError("変換に失敗しました。");
           return;
         }
         setState((prev) => ({ ...prev, [target]: true }));

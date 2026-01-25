@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 
 async function fetchLayoutContext() {
   const session = await getSessionFromCookies();
-  let enabledModules = MODULE_LINKS;
+  let enabledModules: (typeof MODULE_LINKS)[number][] = [...MODULE_LINKS];
   let enabledSet = new Set<ModuleKey>(enabledModules.map((mod) => mod.key));
   if (session) {
     const group = await prisma.group.findUnique({
@@ -57,12 +57,7 @@ async function fetchLayoutContext() {
   ];
   const navItems = navOrder
     .map((key) => moduleMap.get(key))
-    .filter(
-      (
-        item
-      ): item is { key: string; label: string; href: string; enabled: boolean } =>
-        Boolean(item)
-    );
+    .filter((item) => item !== undefined);
 
   return { session, navItems };
 }

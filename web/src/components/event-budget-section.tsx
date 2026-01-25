@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 type EventBudgetData = {
   id: number;
@@ -506,7 +506,7 @@ function TransactionForm({
   const [loading, setLoading] = useState(true);
 
   // 勘定科目一覧取得
-  useState(() => {
+  useEffect(() => {
     async function fetchAccounts() {
       try {
         const response = await fetch(`/api/accounts`);
@@ -525,7 +525,7 @@ function TransactionForm({
       }
     }
     fetchAccounts();
-  });
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

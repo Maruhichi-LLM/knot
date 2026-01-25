@@ -90,7 +90,7 @@ export async function GET() {
     doc.end();
   });
 
-  return new NextResponse(pdfBuffer, {
+  return new NextResponse(pdfBuffer as unknown as BodyInit, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": 'attachment; filename="events.pdf"',

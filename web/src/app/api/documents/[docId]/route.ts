@@ -44,13 +44,14 @@ async function loadRequester(memberId: number) {
 
 export async function GET(
   request: Request,
-  { params }: { params: { docId: string } }
+  { params }: { params: Promise<{ docId: string }> }
 ) {
   const session = await getSessionFromCookies();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const docId = Number(params.docId);
+  const { docId: docIdString } = await params;
+  const docId = Number(docIdString);
   if (!Number.isInteger(docId)) {
     return NextResponse.json({ error: "Invalid document id" }, { status: 400 });
   }
@@ -77,7 +78,11 @@ export async function GET(
           { status: 400 }
         );
       }
-      version = document.versions.find((v) => v.id === requestedId);
+      const foundVersion = document.versions.find((v) => v.id === requestedId);
+      if (!foundVersion) {
+        return NextResponse.json({ error: "Version not found" }, { status: 404 });
+      }
+      version = foundVersion;
     }
     if (!version) {
       return NextResponse.json({ error: "Version not found" }, { status: 404 });
@@ -121,13 +126,14 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { docId: string } }
+  { params }: { params: Promise<{ docId: string }> }
 ) {
   const session = await getSessionFromCookies();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const docId = Number(params.docId);
+  const { docId: docIdString } = await params;
+  const docId = Number(docIdString);
   if (!Number.isInteger(docId)) {
     return NextResponse.json({ error: "Invalid document id" }, { status: 400 });
   }
