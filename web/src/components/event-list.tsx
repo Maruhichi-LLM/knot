@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { EventForm } from "./event-form";
+import { RelatedThreadButton } from "./related-thread-button";
 
 export type EventAttendanceDisplay = {
   eventId: number;
@@ -20,12 +21,14 @@ export type EventDisplay = {
   location?: string | null;
   startsAt: string;
   endsAt?: string | null;
+  threadId?: number | null;
   attendances: EventAttendanceDisplay[];
 };
 
 type Props = {
   events: EventDisplay[];
   memberId: number;
+  groupId: number;
   canEdit?: boolean;
 };
 
@@ -67,7 +70,7 @@ const statusSections: Array<{
   },
 ];
 
-export function EventList({ events, memberId, canEdit = false }: Props) {
+export function EventList({ events, memberId, groupId, canEdit = false }: Props) {
   if (events.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500">
@@ -83,6 +86,7 @@ export function EventList({ events, memberId, canEdit = false }: Props) {
           key={event.id}
           event={event}
           memberId={memberId}
+          groupId={groupId}
           canEdit={canEdit}
         />
       ))}
@@ -93,10 +97,11 @@ export function EventList({ events, memberId, canEdit = false }: Props) {
 type EventCardProps = {
   event: EventDisplay;
   memberId: number;
+  groupId: number;
   canEdit: boolean;
 };
 
-function EventCard({ event, memberId, canEdit }: EventCardProps) {
+function EventCard({ event, memberId, groupId, canEdit }: EventCardProps) {
   const router = useRouter();
   const existing = event.attendances.find((item) => item.memberId === memberId);
   const [currentStatus, setCurrentStatus] = useState<"YES" | "NO" | "MAYBE">(
@@ -327,6 +332,16 @@ function EventCard({ event, memberId, canEdit }: EventCardProps) {
             </div>
           ) : null}
         </div>
+      </div>
+
+      <div className="mt-4">
+        <RelatedThreadButton
+          groupId={groupId}
+          sourceType="EVENT"
+          sourceId={event.id}
+          title={`Event: ${event.title}`}
+          threadId={event.threadId ?? null}
+        />
       </div>
 
       {isDialogOpen && pendingStatus ? (

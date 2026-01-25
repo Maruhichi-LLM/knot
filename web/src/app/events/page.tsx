@@ -15,7 +15,7 @@ function buildInitialStartsAt(date?: string) {
 }
 
 async function fetchEventData(groupId: number, memberId: number) {
-  const [group, events, member] = await Promise.all([
+  const [group, events, member, threads] = await Promise.all([
     prisma.group.findUnique({ where: { id: groupId } }),
     prisma.event.findMany({
       where: { groupId },
@@ -30,7 +30,22 @@ async function fetchEventData(groupId: number, memberId: number) {
     prisma.member.findUnique({
       where: { id: memberId },
     }),
+    prisma.chatThread.findMany({
+      where: {
+        groupId,
+        sourceType: "EVENT",
+      },
+      select: {
+        id: true,
+        sourceId: true,
+      },
+    }),
   ]);
+
+  // Create a map of eventId to threadId
+  const threadMap = new Map(
+    threads.map((thread) => [thread.sourceId, thread.id])
+  );
 
   return {
     group,
@@ -41,6 +56,7 @@ async function fetchEventData(groupId: number, memberId: number) {
       location: event.location,
       startsAt: event.startsAt.toISOString(),
       endsAt: event.endsAt ? event.endsAt.toISOString() : null,
+      threadId: threadMap.get(event.id) ?? null,
       attendances: event.attendances.map((attendance) => ({
         eventId: event.id,
         memberId: attendance.memberId,
@@ -118,6 +134,7 @@ export default async function EventsPage({
               <EventList
                 events={data.events}
                 memberId={session.memberId}
+                groupId={session.groupId}
                 canEdit={canEdit}
               />
             </div>
