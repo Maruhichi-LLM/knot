@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ThreadSourceType, ThreadStatus } from "@prisma/client";
+import { ThreadSourceType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { ensureModuleEnabled } from "@/lib/modules";
 import { ensureFreeThread } from "@/lib/chat";
+import { ThreadStatusToggle } from "@/components/thread-status-toggle";
 
 const SOURCE_TYPE_LABELS: Record<ThreadSourceType, string> = {
   TODO: "ToDo",
@@ -28,7 +29,7 @@ export default async function ChatPage() {
   await ensureFreeThread(session.groupId);
 
   const threads = await prisma.chatThread.findMany({
-    where: { groupId: session.groupId, status: ThreadStatus.OPEN },
+    where: { groupId: session.groupId },
     orderBy: { updatedAt: "desc" },
     include: {
       _count: {
@@ -86,13 +87,12 @@ export default async function ChatPage() {
               </p>
             ) : (
               threads.map((thread) => (
-                <Link
+                <div
                   key={thread.id}
-                  href={`/threads/${thread.id}`}
-                  className="flex flex-col gap-2 rounded-2xl border border-zinc-200 p-5 shadow-sm transition hover:border-sky-200 hover:bg-sky-50"
+                  className="rounded-2xl border border-zinc-200 p-5 shadow-sm"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
+                    <div className="flex-1">
                       <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
                         <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[0.7rem] text-zinc-600">
                           {SOURCE_TYPE_LABELS[thread.sourceType]}
@@ -101,15 +101,23 @@ export default async function ChatPage() {
                           {formatter.format(thread.updatedAt)} 更新
                         </span>
                       </div>
-                      <h3 className="mt-1 text-lg font-semibold text-zinc-900">
-                        {thread.title}
-                      </h3>
+                      <Link href={`/threads/${thread.id}`}>
+                        <h3 className="mt-1 text-lg font-semibold text-zinc-900 hover:text-sky-600 transition">
+                          {thread.title}
+                        </h3>
+                      </Link>
                     </div>
-                    <div className="text-right text-sm text-zinc-500">
-                      <p>メッセージ {thread._count.messages}</p>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right text-sm text-zinc-500">
+                        <p>メッセージ {thread._count.messages}</p>
+                      </div>
+                      <ThreadStatusToggle
+                        threadId={thread.id}
+                        currentStatus={thread.status}
+                      />
                     </div>
                   </div>
-                </Link>
+                </div>
               ))
             )}
           </div>
