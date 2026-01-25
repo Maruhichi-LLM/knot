@@ -1,0 +1,138 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getSessionFromCookies } from "@/lib/session";
+import { ensureEventBudgetEnabled } from "@/lib/modules";
+import { LedgerStatus } from "@prisma/client";
+import { revalidatePath } from "next/cache";
+
+type ImportRequest = {
+  notes?: string;
+};
+
+// 本会計への取り込み
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ eventId: string }> }
+) {
+  const session = await getSessionFromCookies();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  await ensureEventBudgetEnabled(session.groupId);
+
+  const { eventId: eventIdString } = await params;
+  const eventId = Number(eventIdString);
+
+  const eventBudget = await prisma.eventBudget.findFirst({
+    where: {
+      eventId,
+      groupId: session.groupId,
+    },
+    include: {
+      event: true,
+      transactions: {
+        include: {
+          account: true,
+        },
+        orderBy: { transactionDate: "asc" },
+      },
+    },
+  });
+
+  if (!eventBudget) {
+    return NextResponse.json(
+      { error: "収支管理が見つかりません。" },
+      { status: 404 }
+    );
+  }
+
+  if (eventBudget.status === "IMPORTED") {
+    return NextResponse.json(
+      { error: "既に本会計に取り込まれています。" },
+      { status: 400 }
+    );
+  }
+
+  if (eventBudget.status !== "CONFIRMED") {
+    return NextResponse.json(
+      { error: "収支を確定してから取り込んでください。" },
+      { status: 400 }
+    );
+  }
+
+  if (eventBudget.transactions.length === 0) {
+    return NextResponse.json(
+      { error: "取り込む取引がありません。" },
+      { status: 400 }
+    );
+  }
+
+  const body = ((await request.json().catch(() => ({}))) ??
+    {}) as ImportRequest;
+
+  // トランザクション内で一括処理
+  const result = await prisma.$transaction(async (tx) => {
+    const ledgers = [];
+
+    for (const transaction of eventBudget.transactions) {
+      if (!transaction.accountId) {
+        throw new Error(
+          `取引「${transaction.description}」に勘定科目が設定されていません。`
+        );
+      }
+
+      // 金額の符号を決定（収入は+、支出は-）
+      const ledgerAmount =
+        transaction.type === "REVENUE" ? transaction.amount : -transaction.amount;
+
+      const ledger = await tx.ledger.create({
+        data: {
+          groupId: session.groupId,
+          createdByMemberId: transaction.createdByMemberId,
+          title: `${eventBudget.event.title} - ${transaction.description}`,
+          amount: ledgerAmount,
+          transactionDate: transaction.transactionDate,
+          notes: `イベント収支より取込（ID: ${transaction.id}）`,
+          status: LedgerStatus.APPROVED,
+          accountId: transaction.accountId,
+          eventBudgetId: eventBudget.id,
+        },
+      });
+
+      ledgers.push(ledger);
+    }
+
+    // EventBudgetImportレコードを作成
+    const importRecord = await tx.eventBudgetImport.create({
+      data: {
+        eventBudgetId: eventBudget.id,
+        importedByMemberId: session.memberId,
+        ledgerEntryCount: ledgers.length,
+        notes: body.notes || null,
+      },
+    });
+
+    // EventBudgetのステータスを更新
+    const updatedBudget = await tx.eventBudget.update({
+      where: { id: eventBudget.id },
+      data: {
+        status: "IMPORTED",
+        importedToLedgerAt: new Date(),
+      },
+    });
+
+    return { ledgers, importRecord, updatedBudget };
+  });
+
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath("/events");
+  revalidatePath("/accounting");
+
+  return NextResponse.json({
+    success: true,
+    imported: result.ledgers.length,
+    ledgers: result.ledgers,
+    importRecord: result.importRecord,
+  });
+}
