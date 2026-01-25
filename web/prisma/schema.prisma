@@ -403,6 +403,8 @@ model EventTransaction {
   amount            Int
   description       String
   transactionDate   DateTime
+  receiptUrl        String?
+  notes             String?
   createdByMemberId Int
   createdBy         Member               @relation("EventTransactionCreatedBy", fields: [createdByMemberId], references: [id])
   createdAt         DateTime             @default(now())

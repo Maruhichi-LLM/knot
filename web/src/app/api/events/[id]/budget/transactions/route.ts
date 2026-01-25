@@ -11,6 +11,8 @@ type CreateTransactionRequest = {
   amount: number;
   description: string;
   transactionDate: string;
+  receiptUrl?: string;
+  notes?: string;
 };
 
 // EventTransaction作成
@@ -125,6 +127,8 @@ export async function POST(
       amount: body.amount,
       description: body.description.trim(),
       transactionDate: new Date(body.transactionDate),
+      receiptUrl: body.receiptUrl?.trim() || null,
+      notes: body.notes?.trim() || null,
       createdByMemberId: session.memberId,
     },
     include: {

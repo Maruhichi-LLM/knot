@@ -5,6 +5,8 @@ import { ROLE_ADMIN } from "@/lib/roles";
 import {
   MODULE_LINKS,
   ModuleKey,
+  AllModuleKey,
+  EXTENSION_MODULES,
   filterEnabledModules,
 } from "@/lib/modules";
 import { MODULE_METADATA } from "@/lib/module-metadata";
@@ -27,6 +29,24 @@ const STORE_DISPLAY_ORDER: ModuleKey[] = [
   "management",
   "store",
 ];
+
+const EXTENSION_MODULE_METADATA: Record<
+  string,
+  {
+    title: string;
+    description: string;
+    badge: string;
+    note?: string;
+  }
+> = {
+  "event-budget": {
+    title: "Event Budget Extension",
+    description:
+      "イベントごとの収入・支出を個別に管理し、本会計に取り込む拡張機能です。",
+    badge: "Event / Extension",
+    note: "Knot Eventモジュールの拡張機能です",
+  },
+};
 
 const FUTURE_MODULES: StoreEntry[] = [
   {
@@ -75,7 +95,20 @@ function buildStoreEntries(): StoreEntry[] {
     };
   });
 
-  return [...managedEntries, ...FUTURE_MODULES];
+  const extensionEntries: StoreEntry[] = EXTENSION_MODULES.map((key) => {
+    const metadata = EXTENSION_MODULE_METADATA[key];
+    return {
+      key,
+      title: metadata?.title ?? "Extension Module",
+      description: metadata?.description ?? "",
+      badge: metadata?.badge,
+      state: "available",
+      toggleable: true,
+      note: metadata?.note,
+    };
+  });
+
+  return [...managedEntries, ...extensionEntries, ...FUTURE_MODULES];
 }
 
 export default async function StorePage() {
@@ -98,9 +131,8 @@ export default async function StorePage() {
     redirect("/join");
   }
 
-  const enabledKeys = filterEnabledModules(
-    member.group.enabledModules
-  ).map((module) => module.key);
+  // Include both core modules and extension modules
+  const enabledKeys = (member.group.enabledModules || []) as AllModuleKey[];
   const isAdmin = member.role === ROLE_ADMIN;
   const entries = buildStoreEntries();
 

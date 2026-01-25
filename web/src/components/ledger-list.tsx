@@ -79,7 +79,8 @@ export function LedgerList({ ledgers, canApprove, accounts, groupId }: Props) {
             </div>
             <div className="text-right">
               <p className="text-2xl font-bold text-zinc-900">
-                ¥{ledger.amount.toLocaleString()}
+                {ledger.amount < 0 ? "-" : ""}¥
+                {Math.abs(ledger.amount).toLocaleString()}
               </p>
               <p
                 className={`text-sm font-medium ${
@@ -263,7 +264,7 @@ function DraftFinalizeForm({
 }) {
   const router = useRouter();
   const [amount, setAmount] = useState(
-    ledger.amount > 0 ? String(ledger.amount) : ""
+    ledger.amount !== 0 ? String(ledger.amount) : ""
   );
   const [accountId, setAccountId] = useState(
     ledger.account?.id ? String(ledger.account.id) : ""
@@ -300,8 +301,8 @@ function DraftFinalizeForm({
       return;
     }
     const amountNumber = Number(amount);
-    if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
-      setError("正しい金額を入力してください。");
+    if (!Number.isFinite(amountNumber) || amountNumber === 0) {
+      setError("正しい金額を入力してください（0以外）。");
       return;
     }
     setIsSubmitting(true);
@@ -392,8 +393,8 @@ function DraftFinalizeForm({
             type="number"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            min={1}
             required
+            placeholder="正の値または赤伝票（マイナス値）"
             className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
           />
         </label>

@@ -23,6 +23,11 @@ export type EventDisplay = {
   endsAt?: string | null;
   threadId?: number | null;
   attendances: EventAttendanceDisplay[];
+  budget?: {
+    actualRevenue: number;
+    actualExpense: number;
+    status: "PLANNING" | "IN_PROGRESS" | "CONFIRMED" | "IMPORTED";
+  } | null;
 };
 
 type Props = {
@@ -30,12 +35,18 @@ type Props = {
   memberId: number;
   groupId: number;
   canEdit?: boolean;
+  budgetEnabled?: boolean;
 };
 
 const formatter = new Intl.DateTimeFormat("ja-JP", {
   dateStyle: "medium",
   timeStyle: "short",
   timeZone: "Asia/Tokyo",
+});
+
+const currencyFormatter = new Intl.NumberFormat("ja-JP", {
+  style: "currency",
+  currency: "JPY",
 });
 
 const statusLabels = {
@@ -70,7 +81,7 @@ const statusSections: Array<{
   },
 ];
 
-export function EventList({ events, memberId, groupId, canEdit = false }: Props) {
+export function EventList({ events, memberId, groupId, canEdit = false, budgetEnabled = false }: Props) {
   if (events.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500">
@@ -88,6 +99,7 @@ export function EventList({ events, memberId, groupId, canEdit = false }: Props)
           memberId={memberId}
           groupId={groupId}
           canEdit={canEdit}
+          budgetEnabled={budgetEnabled}
         />
       ))}
     </div>
@@ -99,9 +111,10 @@ type EventCardProps = {
   memberId: number;
   groupId: number;
   canEdit: boolean;
+  budgetEnabled: boolean;
 };
 
-function EventCard({ event, memberId, groupId, canEdit }: EventCardProps) {
+function EventCard({ event, memberId, groupId, canEdit, budgetEnabled }: EventCardProps) {
   const router = useRouter();
   const existing = event.attendances.find((item) => item.memberId === memberId);
   const [currentStatus, setCurrentStatus] = useState<"YES" | "NO" | "MAYBE">(
@@ -197,9 +210,11 @@ function EventCard({ event, memberId, groupId, canEdit }: EventCardProps) {
                   ? ` 〜 ${formatter.format(new Date(event.endsAt))}`
                   : ""}
               </p>
-              <h3 className="text-lg font-semibold text-zinc-900">
-                {event.title}
-              </h3>
+              <a href={`/events/${event.id}`}>
+                <h3 className="text-lg font-semibold text-zinc-900 hover:text-sky-600 cursor-pointer transition">
+                  {event.title}
+                </h3>
+              </a>
               {event.location ? (
                 <p className="text-xs text-zinc-500">場所: {event.location}</p>
               ) : null}
@@ -333,6 +348,47 @@ function EventCard({ event, memberId, groupId, canEdit }: EventCardProps) {
           ) : null}
         </div>
       </div>
+
+      {/* 収支サマリー（event-budget有効時のみ） */}
+      {budgetEnabled && event.budget && (
+        <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4">
+          <p className="text-xs font-semibold text-sky-700">イベント収支</p>
+          <div className="mt-2 grid grid-cols-3 gap-3 text-center">
+            <div>
+              <p className="text-[11px] text-sky-600">収入</p>
+              <p className="mt-1 text-sm font-bold text-emerald-700">
+                {currencyFormatter.format(event.budget.actualRevenue)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] text-sky-600">支出</p>
+              <p className="mt-1 text-sm font-bold text-rose-700">
+                {currencyFormatter.format(event.budget.actualExpense)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] text-sky-600">損益</p>
+              <p
+                className={`mt-1 text-sm font-bold ${
+                  event.budget.actualRevenue - event.budget.actualExpense >= 0
+                    ? "text-sky-700"
+                    : "text-amber-700"
+                }`}
+              >
+                {currencyFormatter.format(
+                  event.budget.actualRevenue - event.budget.actualExpense
+                )}
+              </p>
+            </div>
+          </div>
+          <a
+            href={`/events/${event.id}`}
+            className="mt-3 block text-center text-xs font-semibold text-sky-600 hover:text-sky-500"
+          >
+            収支詳細を見る →
+          </a>
+        </div>
+      )}
 
       <div className="mt-4">
         <RelatedThreadButton

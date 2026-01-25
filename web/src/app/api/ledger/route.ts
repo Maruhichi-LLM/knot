@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   if (
     !title ||
     !Number.isFinite(amountNumber) ||
-    amountNumber <= 0 ||
+    amountNumber === 0 ||
     !Number.isInteger(accountIdNumber) ||
     !transactionDate
   ) {

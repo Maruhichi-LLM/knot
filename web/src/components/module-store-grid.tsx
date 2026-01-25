@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ModuleKey } from "@/lib/modules";
+import type { AllModuleKey } from "@/lib/modules";
 
 export type StoreEntryState =
   | "available"
@@ -13,7 +13,7 @@ export type StoreEntryState =
   | "locked";
 
 export type StoreEntry = {
-  key?: ModuleKey;
+  key?: AllModuleKey;
   title: string;
   description: string;
   badge?: string;
@@ -24,7 +24,7 @@ export type StoreEntry = {
 
 type Props = {
   entries: StoreEntry[];
-  enabledKeys: ModuleKey[];
+  enabledKeys: AllModuleKey[];
   isAdmin: boolean;
 };
 
@@ -43,10 +43,10 @@ export function ModuleStoreGrid({
   isAdmin,
 }: Props) {
   const router = useRouter();
-  const [loadingKey, setLoadingKey] = useState<ModuleKey | null>(null);
+  const [loadingKey, setLoadingKey] = useState<AllModuleKey | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleToggle(key: ModuleKey, enable: boolean) {
+  async function handleToggle(key: AllModuleKey, enable: boolean) {
     if (!isAdmin) return;
     setLoadingKey(key);
     setError(null);
@@ -79,12 +79,12 @@ export function ModuleStoreGrid({
         {entries.map((entry) => {
           const metadataState = entry.state ?? "available";
           const statusLabel = entry.toggleable
-            ? enabledKeys.includes(entry.key as ModuleKey)
+            ? enabledKeys.includes(entry.key as AllModuleKey)
               ? "Enabled"
               : "Disabled"
             : STATE_LABELS[metadataState];
           const isEnabled =
-            !!entry.key && enabledKeys.includes(entry.key as ModuleKey);
+            !!entry.key && enabledKeys.includes(entry.key as AllModuleKey);
           const isLoading =
             !!entry.key && loadingKey === entry.key;
           const cardMuted =

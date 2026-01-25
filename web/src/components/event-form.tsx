@@ -9,6 +9,7 @@ type Props = {
   event?: EventDisplay;
   onClose?: () => void;
   initialStartsAt?: string;
+  budgetEnabled?: boolean;
 };
 
 function toInputValue(date?: string | null) {
@@ -29,6 +30,7 @@ export function EventForm({
   event,
   onClose,
   initialStartsAt,
+  budgetEnabled,
 }: Props) {
   const router = useRouter();
   const [title, setTitle] = useState(event?.title ?? "");
@@ -38,6 +40,7 @@ export function EventForm({
     toInputValue(event?.startsAt) || initialStartsAt || defaultInputTimestamp()
   );
   const [endsAt, setEndsAt] = useState(toInputValue(event?.endsAt));
+  const [createBudget, setCreateBudget] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -52,6 +55,7 @@ export function EventForm({
       location,
       startsAt,
       endsAt,
+      ...(mode === "create" && budgetEnabled ? { createBudget } : {}),
     };
 
     try {
@@ -80,6 +84,7 @@ export function EventForm({
         setLocation("");
         setStartsAt(initialStartsAt ?? defaultInputTimestamp());
         setEndsAt("");
+        setCreateBudget(false);
       }
     } catch {
       setError("通信エラーが発生しました。");
@@ -143,6 +148,39 @@ export function EventForm({
           />
         </label>
       </div>
+      {mode === "create" && budgetEnabled ? (
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-zinc-900">
+                イベント別収支管理
+              </p>
+              <p className="mt-0.5 text-xs text-zinc-600">
+                このイベントの収入・支出を個別に管理します
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCreateBudget(!createBudget)}
+              className="ml-4"
+              aria-label={createBudget ? "収支管理を無効化" : "収支管理を有効化"}
+            >
+              <span
+                aria-hidden="true"
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                  createBudget ? "bg-sky-600" : "bg-zinc-300"
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                    createBudget ? "translate-x-5" : "translate-x-1"
+                  }`}
+                />
+              </span>
+            </button>
+          </div>
+        </div>
+      ) : null}
       {error ? (
         <p className="text-sm text-red-600" role="alert">
           {error}

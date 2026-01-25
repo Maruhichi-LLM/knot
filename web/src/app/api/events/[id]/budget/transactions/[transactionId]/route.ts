@@ -16,7 +16,7 @@ export async function DELETE(
 
   await ensureEventBudgetEnabled(session.groupId);
 
-  const { eventId: eventIdString, transactionId: transactionIdString } = await params;
+  const { id: eventIdString, transactionId: transactionIdString } = await params;
   const eventId = Number(eventIdString);
   const transactionId = Number(transactionIdString);
 

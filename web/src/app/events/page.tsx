@@ -15,7 +15,7 @@ function buildInitialStartsAt(date?: string) {
 }
 
 async function fetchEventData(groupId: number, memberId: number) {
-  const [group, events, member, threads] = await Promise.all([
+  const [group, events, member, threads, budgetEnabled] = await Promise.all([
     prisma.group.findUnique({ where: { id: groupId } }),
     prisma.event.findMany({
       where: { groupId },
@@ -23,6 +23,13 @@ async function fetchEventData(groupId: number, memberId: number) {
         attendances: {
           include: { member: true },
           orderBy: { respondedAt: "desc" },
+        },
+        budget: {
+          select: {
+            actualRevenue: true,
+            actualExpense: true,
+            status: true,
+          },
         },
       },
       orderBy: { startsAt: "asc" },
@@ -40,6 +47,7 @@ async function fetchEventData(groupId: number, memberId: number) {
         sourceId: true,
       },
     }),
+    isModuleEnabled(groupId, "event-budget"),
   ]);
 
   // Create a map of eventId to threadId
@@ -65,8 +73,16 @@ async function fetchEventData(groupId: number, memberId: number) {
         comment: attendance.comment,
         respondedAt: attendance.respondedAt.toISOString(),
       })),
+      budget: event.budget
+        ? {
+            actualRevenue: event.budget.actualRevenue,
+            actualExpense: event.budget.actualExpense,
+            status: event.budget.status,
+          }
+        : null,
     })) as EventDisplay[],
     member,
+    budgetEnabled,
   };
 }
 
@@ -136,6 +152,7 @@ export default async function EventsPage({
                 memberId={session.memberId}
                 groupId={session.groupId}
                 canEdit={canEdit}
+                budgetEnabled={data.budgetEnabled}
               />
             </div>
           </section>
@@ -149,7 +166,11 @@ export default async function EventsPage({
             </p>
             {canEdit ? (
               <div id="create-event" className="mt-4">
-                <EventForm mode="create" initialStartsAt={initialStartsAt} />
+                <EventForm
+                  mode="create"
+                  initialStartsAt={initialStartsAt}
+                  budgetEnabled={data.budgetEnabled}
+                />
               </div>
             ) : (
               <p className="mt-4 text-sm text-zinc-500">

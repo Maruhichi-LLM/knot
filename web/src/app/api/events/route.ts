@@ -10,6 +10,7 @@ type EventPayload = {
   location?: string;
   startsAt?: string;
   endsAt?: string;
+  createBudget?: boolean;
 };
 
 async function ensureAdmin(memberId: number) {
@@ -70,6 +71,19 @@ export async function POST(request: Request) {
       endsAt,
     },
   });
+
+  // イベント別収支管理を有効化する場合、EventBudgetレコードを作成
+  if (body.createBudget) {
+    await prisma.eventBudget.create({
+      data: {
+        eventId: event.id,
+        groupId: admin.groupId,
+        status: "PLANNING",
+        actualRevenue: 0,
+        actualExpense: 0,
+      },
+    });
+  }
 
   revalidatePath("/events");
 

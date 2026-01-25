@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 
 type EventBudgetData = {
   id: number;
@@ -22,6 +22,8 @@ type EventBudgetData = {
     amount: number;
     description: string;
     transactionDate: string;
+    receiptUrl: string | null;
+    notes: string | null;
     createdBy: { id: number; displayName: string };
     createdAt: string;
   }[];
@@ -77,6 +79,7 @@ export function EventBudgetSection({
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showEditBudgetForm, setShowEditBudgetForm] = useState(false);
 
   // 収支管理未作成時の作成フォーム
   if (!eventBudget) {
@@ -188,6 +191,32 @@ export function EventBudgetSection({
             </p>
           </div>
         </div>
+
+        {/* 予算編集 */}
+        {canEdit && !isReadOnly && (
+          <div className="mt-6">
+            {!showEditBudgetForm ? (
+              <button
+                type="button"
+                onClick={() => setShowEditBudgetForm(true)}
+                className="rounded-lg border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-100"
+              >
+                予算を編集
+              </button>
+            ) : (
+              <EditBudgetForm
+                eventId={eventId}
+                currentPlannedRevenue={eventBudget.plannedRevenue}
+                currentPlannedExpense={eventBudget.plannedExpense}
+                onCancel={() => setShowEditBudgetForm(false)}
+                onSuccess={() => {
+                  setShowEditBudgetForm(false);
+                  router.refresh();
+                }}
+              />
+            )}
+          </div>
+        )}
 
         {/* 確定・取込アクション */}
         {canEdit && !isReadOnly && (
@@ -334,6 +363,114 @@ function CreateBudgetForm({
           className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-300"
         >
           {isCreating ? "作成中..." : "作成する"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// 予算編集フォーム
+function EditBudgetForm({
+  eventId,
+  currentPlannedRevenue,
+  currentPlannedExpense,
+  onCancel,
+  onSuccess,
+}: {
+  eventId: number;
+  currentPlannedRevenue: number;
+  currentPlannedExpense: number;
+  onCancel: () => void;
+  onSuccess: () => void;
+}) {
+  const [plannedRevenue, setPlannedRevenue] = useState(
+    String(currentPlannedRevenue)
+  );
+  const [plannedExpense, setPlannedExpense] = useState(
+    String(currentPlannedExpense)
+  );
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setIsUpdating(true);
+
+    try {
+      const response = await fetch(`/api/events/${eventId}/budget`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plannedRevenue: plannedRevenue ? Number(plannedRevenue) : 0,
+          plannedExpense: plannedExpense ? Number(plannedExpense) : 0,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        setError(data.error ?? "更新に失敗しました。");
+        setIsUpdating(false);
+        return;
+      }
+
+      onSuccess();
+    } catch {
+      setError("通信エラーが発生しました。");
+      setIsUpdating(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-sky-200 bg-sky-50 p-4">
+      <h4 className="text-sm font-semibold text-sky-900">予算を編集</h4>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block text-sm">
+          <span className="font-semibold text-zinc-700">予定収入（円）</span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={plannedRevenue}
+            onChange={(e) => setPlannedRevenue(e.target.value)}
+            placeholder="100000"
+            className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+          />
+        </label>
+        <label className="block text-sm">
+          <span className="font-semibold text-zinc-700">予定支出（円）</span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={plannedExpense}
+            onChange={(e) => setPlannedExpense(e.target.value)}
+            placeholder="80000"
+            className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+          />
+        </label>
+      </div>
+      {error && (
+        <p className="text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-50"
+        >
+          キャンセル
+        </button>
+        <button
+          type="submit"
+          disabled={isUpdating}
+          className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-300"
+        >
+          {isUpdating ? "更新中..." : "更新する"}
         </button>
       </div>
     </form>
@@ -498,6 +635,12 @@ function TransactionForm({
   const [transactionDate, setTransactionDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
+  const [receiptUrl, setReceiptUrl] = useState("");
+  const [notes, setNotes] = useState("");
+  const [receiptFileName, setReceiptFileName] = useState("");
+  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
+  const [receiptUploadError, setReceiptUploadError] = useState<string | null>(null);
+  const receiptFileInputRef = useRef<HTMLInputElement | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<
@@ -527,6 +670,39 @@ function TransactionForm({
     fetchAccounts();
   }, []);
 
+  async function handleReceiptFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    setIsUploadingReceipt(true);
+    setReceiptUploadError(null);
+    try {
+      const uploadForm = new FormData();
+      uploadForm.append("file", file);
+      const response = await fetch("/api/receipts", {
+        method: "POST",
+        body: uploadForm,
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(data.error ?? "アップロードに失敗しました。");
+      }
+      const data = (await response.json()) as { url: string; fileName: string };
+      setReceiptUrl(data.url);
+      setReceiptFileName(file.name);
+    } catch (err) {
+      setReceiptUploadError(
+        err instanceof Error ? err.message : "アップロードに失敗しました。"
+      );
+    } finally {
+      event.target.value = "";
+      setIsUploadingReceipt(false);
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -544,6 +720,8 @@ function TransactionForm({
             amount: Number(amount),
             description: description.trim(),
             transactionDate,
+            receiptUrl: receiptUrl.trim() || undefined,
+            notes: notes.trim() || undefined,
           }),
         }
       );
@@ -562,6 +740,9 @@ function TransactionForm({
       setAmount("");
       setDescription("");
       setTransactionDate(new Date().toISOString().slice(0, 10));
+      setReceiptUrl("");
+      setNotes("");
+      setReceiptFileName("");
       onSuccess();
     } catch {
       setError("通信エラーが発生しました。");
@@ -648,6 +829,49 @@ function TransactionForm({
                 ? "例: 夏祭り 参加費（田中太郎）"
                 : "例: 夏祭り 会場費"
             }
+            className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+          />
+        </label>
+        <label className="block text-sm">
+          <span className="font-semibold text-zinc-700">証憑URL（任意）</span>
+          <input
+            type="text"
+            value={receiptUrl}
+            onChange={(e) => setReceiptUrl(e.target.value)}
+            placeholder="https://example.com/receipt"
+            className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+          />
+        </label>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-600">
+          <input
+            ref={receiptFileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleReceiptFileChange}
+          />
+          <button
+            type="button"
+            onClick={() => receiptFileInputRef.current?.click()}
+            className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-semibold text-zinc-700 transition hover:border-sky-500 hover:text-sky-600"
+            disabled={isUploadingReceipt}
+          >
+            {isUploadingReceipt ? "アップロード中…" : "ローカルファイルを添付"}
+          </button>
+          {receiptFileName && !isUploadingReceipt ? (
+            <span className="text-xs text-zinc-500">
+              {receiptFileName} をアップロードしました
+            </span>
+          ) : null}
+        </div>
+        {receiptUploadError ? (
+          <p className="text-xs text-red-500">{receiptUploadError}</p>
+        ) : null}
+        <label className="block text-sm">
+          <span className="font-semibold text-zinc-700">メモ（任意）</span>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
             className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
           />
         </label>
@@ -743,6 +967,24 @@ function TransactionList({
                     {tx.account?.name ?? "科目未設定"} •{" "}
                     {formatter.format(new Date(tx.transactionDate))}
                   </p>
+                  {tx.receiptUrl && (
+                    <p className="mt-1 text-xs text-emerald-600">
+                      証憑:{" "}
+                      <a
+                        href={tx.receiptUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline hover:text-emerald-800"
+                      >
+                        開く
+                      </a>
+                    </p>
+                  )}
+                  {tx.notes && (
+                    <p className="mt-1 text-xs text-emerald-600">
+                      メモ: {tx.notes}
+                    </p>
+                  )}
                   <p className="mt-1 text-xs text-emerald-600">
                     記録者: {tx.createdBy.displayName}
                   </p>
@@ -788,6 +1030,24 @@ function TransactionList({
                     {tx.account?.name ?? "科目未設定"} •{" "}
                     {formatter.format(new Date(tx.transactionDate))}
                   </p>
+                  {tx.receiptUrl && (
+                    <p className="mt-1 text-xs text-rose-600">
+                      証憑:{" "}
+                      <a
+                        href={tx.receiptUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline hover:text-rose-800"
+                      >
+                        開く
+                      </a>
+                    </p>
+                  )}
+                  {tx.notes && (
+                    <p className="mt-1 text-xs text-rose-600">
+                      メモ: {tx.notes}
+                    </p>
+                  )}
                   <p className="mt-1 text-xs text-rose-600">
                     記録者: {tx.createdBy.displayName}
                   </p>

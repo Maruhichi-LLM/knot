@@ -32,17 +32,22 @@ export function LedgerCreateForm({ accounts }: Props) {
   const hasAccounts = accounts.length > 0;
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  // 桁区切り用の関数
+  // 桁区切り用の関数（マイナス対応）
   const formatNumber = (value: string): string => {
+    if (!value) return "";
+    const isNegative = value.startsWith("-");
     const numericValue = value.replace(/[^\d]/g, "");
-    if (!numericValue) return "";
-    return Number(numericValue).toLocaleString("ja-JP");
+    if (!numericValue) return isNegative ? "-" : "";
+    const formatted = Number(numericValue).toLocaleString("ja-JP");
+    return isNegative ? `-${formatted}` : formatted;
   };
 
   const handleAmountChange = (e: ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value;
+    // マイナス記号と数字のみを許可
+    const isNegative = input.startsWith("-");
     const numericValue = input.replace(/[^\d]/g, "");
-    setAmount(numericValue);
+    setAmount(isNegative && numericValue ? `-${numericValue}` : numericValue);
   };
 
   // 確認画面を表示
@@ -190,11 +195,11 @@ export function LedgerCreateForm({ accounts }: Props) {
           <input
             type="text"
             inputMode="numeric"
-            pattern="[0-9,]*"
+            pattern="-?[0-9,]*"
             value={formatNumber(amount)}
             onChange={handleAmountChange}
             className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-            placeholder="12,000"
+            placeholder="12,000（赤伝票: -12,000）"
             required
             lang="en"
           />
@@ -287,7 +292,10 @@ export function LedgerCreateForm({ accounts }: Props) {
               </div>
               <div className="flex justify-between text-sm">
                 <dt className="text-zinc-500">金額</dt>
-                <dd className="font-semibold text-zinc-900">{formatNumber(amount)}円</dd>
+                <dd className={`font-semibold ${amount.startsWith("-") ? "text-red-600" : "text-zinc-900"}`}>
+                  {formatNumber(amount)}円
+                  {amount.startsWith("-") && <span className="ml-1 text-xs">(赤伝票)</span>}
+                </dd>
               </div>
               {receiptUrl && (
                 <div className="flex justify-between text-sm">

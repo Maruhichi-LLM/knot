@@ -5,15 +5,21 @@ import { ROLE_ADMIN } from "@/lib/roles";
 import {
   MODULE_LINKS,
   ModuleKey,
+  AllModuleKey,
+  EXTENSION_MODULES,
   resolveModules,
 } from "@/lib/modules";
 
-const TOGGLEABLE_KEYS: ModuleKey[] = MODULE_LINKS.map(
-  (mod) => mod.key
-).filter((key): key is ModuleKey => key !== "store");
+const TOGGLEABLE_KEYS: AllModuleKey[] = [
+  ...MODULE_LINKS.map((mod) => mod.key).filter((key) => key !== "store"),
+  ...EXTENSION_MODULES,
+];
 
-function isModuleKey(value: string): value is ModuleKey {
-  return MODULE_LINKS.some((module) => module.key === value);
+function isAllModuleKey(value: string): value is AllModuleKey {
+  return (
+    MODULE_LINKS.some((module) => module.key === value) ||
+    EXTENSION_MODULES.includes(value as any)
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -29,7 +35,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
-  if (!body.moduleKey || !isModuleKey(body.moduleKey)) {
+  if (!body.moduleKey || !isAllModuleKey(body.moduleKey)) {
     return NextResponse.json({ error: "Unknown module" }, { status: 400 });
   }
 
@@ -56,7 +62,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const modules = new Set(resolveModules(member.group.enabledModules));
+  // Include both core modules and extension modules
+  const currentModules = (member.group.enabledModules || []) as string[];
+  const modules = new Set(currentModules);
+
   if (body.enable) {
     modules.add(body.moduleKey);
   } else {

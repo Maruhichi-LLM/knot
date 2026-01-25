@@ -82,9 +82,17 @@ export async function POST(
         );
       }
 
-      // 金額の符号を決定（収入は+、支出は-）
-      const ledgerAmount =
-        transaction.type === "REVENUE" ? transaction.amount : -transaction.amount;
+      // 本会計には金額をそのまま正の値で取り込む
+      // 赤伝票（取り消し）は別途マイナス入力で対応
+      const ledgerAmount = transaction.amount;
+
+      // メモにイベント収支からの取り込み情報を追加
+      const ledgerNotes = [
+        transaction.notes,
+        `イベント収支より取込（ID: ${transaction.id}）`,
+      ]
+        .filter(Boolean)
+        .join("\n");
 
       const ledger = await tx.ledger.create({
         data: {
@@ -93,7 +101,8 @@ export async function POST(
           title: `${eventBudget.event.title} - ${transaction.description}`,
           amount: ledgerAmount,
           transactionDate: transaction.transactionDate,
-          notes: `イベント収支より取込（ID: ${transaction.id}）`,
+          receiptUrl: transaction.receiptUrl,
+          notes: ledgerNotes,
           status: LedgerStatus.APPROVED,
           accountId: transaction.accountId,
           eventBudgetId: eventBudget.id,
