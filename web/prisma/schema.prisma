@@ -26,6 +26,7 @@ model Group {
   enabledModules       String[]     @default([])
   documents            Document[]
   eventBudgets         EventBudget[]
+  fiscalYearCloses     FiscalYearClose[]
 }
 
 model Member {
@@ -50,6 +51,7 @@ model Member {
   eventBudgetsConfirmed   EventBudget[]        @relation("EventBudgetConfirmedBy")
   eventTransactionsCreated EventTransaction[]  @relation("EventTransactionCreatedBy")
   eventBudgetImports      EventBudgetImport[]  @relation("EventBudgetImportedBy")
+  fiscalYearClosesConfirmed FiscalYearClose[]  @relation("FiscalYearCloseConfirmedBy")
 }
 
 model InviteCode {
@@ -425,4 +427,33 @@ model EventBudgetImport {
   notes              String?
 
   @@index([eventBudgetId])
+}
+
+enum FiscalYearCloseStatus {
+  DRAFT
+  CONFIRMED
+}
+
+model FiscalYearClose {
+  id                 Int                    @id @default(autoincrement())
+  groupId            Int
+  group              Group                  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fiscalYear         Int
+  startDate          DateTime
+  endDate            DateTime
+  status             FiscalYearCloseStatus  @default(DRAFT)
+  totalRevenue       Int                    @default(0)
+  totalExpense       Int                    @default(0)
+  balance            Int                    @default(0)
+  previousCarryover  Int                    @default(0)
+  nextCarryover      Int                    @default(0)
+  statement          Json?
+  confirmedAt        DateTime?
+  confirmedById      Int?
+  confirmedBy        Member?                @relation("FiscalYearCloseConfirmedBy", fields: [confirmedById], references: [id])
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  @@unique([groupId, fiscalYear])
+  @@index([groupId, status])
 }

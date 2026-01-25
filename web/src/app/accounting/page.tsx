@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache";
 import { AccountingLayout } from "@/components/accounting-layout";
 import { BudgetInputField } from "@/components/budget-input-field";
 import { AccountingSettingsForm } from "@/components/accounting-settings-form";
+import { FiscalYearCloseSection } from "@/components/fiscal-year-close-section";
 import { AccountType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -224,7 +225,7 @@ async function createAccountAction(formData: FormData) {
   revalidatePath("/management");
 }
 
-async function fetchLedgerData(groupId: number, memberId: number) {
+async function fetchLedgerData(groupId: number, memberId: number, targetFiscalYear?: number) {
   const [group, ledgers, member, accountingSetting, accounts] =
     await Promise.all([
       prisma.group.findUnique({ where: { id: groupId } }),
@@ -251,9 +252,30 @@ async function fetchLedgerData(groupId: number, memberId: number) {
     ]);
   const fiscalYearStart = group?.fiscalYearStartMonth ?? 4;
   const currentFiscalYear = resolveFiscalYear(new Date(), fiscalYearStart);
-  const budgets = await prisma.budget.findMany({
-    where: { groupId, fiscalYear: currentFiscalYear },
-  });
+  const fiscalYearToFetch = targetFiscalYear ?? currentFiscalYear;
+
+  const [budgets, fiscalYearClose] = await Promise.all([
+    prisma.budget.findMany({
+      where: { groupId, fiscalYear: fiscalYearToFetch },
+    }),
+    prisma.fiscalYearClose.findUnique({
+      where: {
+        groupId_fiscalYear: {
+          groupId,
+          fiscalYear: fiscalYearToFetch,
+        },
+      },
+      include: {
+        confirmedBy: {
+          select: {
+            id: true,
+            displayName: true,
+          },
+        },
+      },
+    }),
+  ]);
+
   return {
     group,
     ledgers: ledgers.map((ledger) => ({
@@ -279,6 +301,12 @@ async function fetchLedgerData(groupId: number, memberId: number) {
     accounts,
     budgets,
     currentFiscalYear,
+    fiscalYearClose: fiscalYearClose ? {
+      ...fiscalYearClose,
+      startDate: fiscalYearClose.startDate.toISOString(),
+      endDate: fiscalYearClose.endDate.toISOString(),
+      confirmedAt: fiscalYearClose.confirmedAt?.toISOString() ?? null,
+    } : undefined,
   };
 }
 
@@ -294,14 +322,13 @@ export default async function LedgerPage({ searchParams }: PageProps) {
 
   await ensureModuleEnabled(session.groupId, "accounting");
 
-  const data = await fetchLedgerData(session.groupId, session.memberId);
-  if (!data.group) {
+  // First get basic group info to determine fiscal year
+  const group = await prisma.group.findUnique({ where: { id: session.groupId } });
+  if (!group) {
     redirect("/join");
   }
 
-  const defaultFiscalYear =
-    data.currentFiscalYear ??
-    resolveFiscalYear(new Date(), data.group.fiscalYearStartMonth ?? 4);
+  const defaultFiscalYear = resolveFiscalYear(new Date(), group.fiscalYearStartMonth ?? 4);
   const requestedFiscalYearRaw = (() => {
     const param = searchParams?.fiscalYear ?? searchParams?.year;
     return Array.isArray(param) ? param[0] : param;
@@ -316,6 +343,13 @@ export default async function LedgerPage({ searchParams }: PageProps) {
     ) {
       targetFiscalYear = parsed;
     }
+  }
+
+  // Now fetch all data with the determined fiscal year
+  const data = await fetchLedgerData(session.groupId, session.memberId, targetFiscalYear);
+
+  if (!data.group) {
+    redirect("/join");
   }
 
   const budgetsForSelectedYear =
@@ -459,6 +493,15 @@ export default async function LedgerPage({ searchParams }: PageProps) {
         setting.budgetEnabled === false
           ? "予算機能は現在 OFF"
           : "予算機能は現在 ON",
+    });
+    navigationItems.push({
+      id: "fiscal-year-close",
+      label: "年度締めと収支計算書",
+      description: data.fiscalYearClose
+        ? data.fiscalYearClose.status === "CONFIRMED"
+          ? `${targetFiscalYear}年度 確定済み`
+          : `${targetFiscalYear}年度 下書き作成済み`
+        : `${targetFiscalYear}年度 未作成`,
     });
   }
 
@@ -920,6 +963,20 @@ export default async function LedgerPage({ searchParams }: PageProps) {
         </section>
       ),
     });
+    sections.push({
+      id: "fiscal-year-close",
+      content: (
+        <FiscalYearCloseSection
+          key="fiscal-year-close-section"
+          groupId={session.groupId}
+          fiscalYear={targetFiscalYear}
+          fiscalYearStartMonth={setting.fiscalYearStartMonth}
+          fiscalYearEndMonth={setting.fiscalYearEndMonth}
+          existingClose={data.fiscalYearClose}
+          carryoverAmount={setting.carryoverAmount ?? 0}
+        />
+      ),
+    });
   } else {
     if (navigationItems.some((item) => item.id === "accounting-settings")) {
       sections.push({
@@ -937,6 +994,12 @@ export default async function LedgerPage({ searchParams }: PageProps) {
       sections.push({
         id: "budget-settings",
         content: renderAdminOnlyNotice("budget-settings-notice"),
+      });
+    }
+    if (navigationItems.some((item) => item.id === "fiscal-year-close")) {
+      sections.push({
+        id: "fiscal-year-close",
+        content: renderAdminOnlyNotice("fiscal-year-close-notice"),
       });
     }
   }
