@@ -16,7 +16,6 @@ type CreateOrUpdateRequest = {
   fiscalYear: number;
   startDate: string;
   endDate: string;
-  previousCarryover?: number;
   action?: "create" | "recalculate" | "confirm";
 };
 
@@ -230,8 +229,29 @@ export async function POST(request: Request) {
     );
   }
 
-  const previousCarryover = body.previousCarryover ?? 0;
   const action = body.action ?? "create";
+
+  // 繰越金をサーバー側で解決: 前年度確定 → フォールバック accountingSetting.carryoverAmount
+  const [previousYearClose, accountingSetting] = await Promise.all([
+    prisma.fiscalYearClose.findUnique({
+      where: {
+        groupId_fiscalYear: {
+          groupId: session.groupId,
+          fiscalYear: body.fiscalYear - 1,
+        },
+      },
+      select: { status: true, nextCarryover: true },
+    }),
+    prisma.accountingSetting.findUnique({
+      where: { groupId: session.groupId },
+      select: { carryoverAmount: true },
+    }),
+  ]);
+
+  const previousCarryover =
+    previousYearClose && previousYearClose.status === "CONFIRMED"
+      ? previousYearClose.nextCarryover
+      : (accountingSetting?.carryoverAmount ?? 0);
 
   // 既存の締めを確認
   const existing = await prisma.fiscalYearClose.findUnique({
@@ -291,12 +311,6 @@ export async function POST(request: Request) {
           },
         },
       },
-    });
-
-    // 確定したら次年度のcarryoverAmountを更新
-    await prisma.accountingSetting.updateMany({
-      where: { groupId: session.groupId },
-      data: { carryoverAmount: statement.nextCarryover },
     });
 
     revalidatePath("/accounting");

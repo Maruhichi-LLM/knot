@@ -7,7 +7,6 @@ type Props = {
   currentFiscalYear: number;
   startMonth: number;
   endMonth: number;
-  carryoverAmount: number;
   approvalFlow: string;
   action: (formData: FormData) => Promise<void>;
 };
@@ -17,7 +16,6 @@ export function AccountingSettingsForm({
   currentFiscalYear,
   startMonth,
   endMonth,
-  carryoverAmount,
   approvalFlow,
   action,
 }: Props) {
@@ -27,16 +25,11 @@ export function AccountingSettingsForm({
     displayFiscalYear: currentFiscalYear,
     startMonth,
     endMonth,
-    carryoverAmount,
     approvalFlow,
   });
 
 
   const MONTH_VALUES = Array.from({ length: 12 }, (_, index) => index + 1);
-
-  const formatNumber = (value: number): string => {
-    return value.toLocaleString("ja-JP");
-  };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -46,7 +39,6 @@ export function AccountingSettingsForm({
       displayFiscalYear: Number(formData.get("displayFiscalYear")),
       startMonth: Number(formData.get("startMonth")),
       endMonth: Number(formData.get("endMonth")),
-      carryoverAmount: Number(formData.get("carryoverAmount")),
       approvalFlow: (formData.get("approvalFlow") as string) || "",
     });
 
@@ -113,15 +105,6 @@ export function AccountingSettingsForm({
               ))}
             </select>
           </label>
-          <label className="block text-sm text-zinc-600">
-            前期繰越金（円）
-            <input
-              type="number"
-              name="carryoverAmount"
-              defaultValue={carryoverAmount}
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-            />
-          </label>
         </div>
         <label className="block text-sm text-zinc-600">
           承認フローのメモ
@@ -167,10 +150,6 @@ export function AccountingSettingsForm({
                 <dt className="text-zinc-500">期末</dt>
                 <dd className="font-semibold text-zinc-900">{formValues.endMonth}月</dd>
               </div>
-              <div className="flex justify-between text-sm">
-                <dt className="text-zinc-500">前期繰越金</dt>
-                <dd className="font-semibold text-zinc-900">{formatNumber(formValues.carryoverAmount)}円</dd>
-              </div>
               {formValues.approvalFlow && (
                 <div className="text-sm">
                   <dt className="text-zinc-500">承認フローのメモ</dt>
@@ -184,7 +163,6 @@ export function AccountingSettingsForm({
               <input type="hidden" name="displayFiscalYear" value={formValues.displayFiscalYear} />
               <input type="hidden" name="startMonth" value={formValues.startMonth} />
               <input type="hidden" name="endMonth" value={formValues.endMonth} />
-              <input type="hidden" name="carryoverAmount" value={formValues.carryoverAmount} />
               <input type="hidden" name="approvalFlow" value={formValues.approvalFlow} />
 
               <div className="mt-6 flex gap-3">

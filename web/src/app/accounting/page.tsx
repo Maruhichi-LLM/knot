@@ -52,7 +52,6 @@ async function saveAccountingSettingsAction(formData: FormData) {
   const endMonth = Number(formData.get("endMonth"));
   const approvalFlow =
     (formData.get("approvalFlow") as string | null)?.trim() || null;
-  const carryover = Number(formData.get("carryoverAmount") ?? 0);
 
   if (
     !Number.isInteger(startMonth) ||
@@ -62,10 +61,6 @@ async function saveAccountingSettingsAction(formData: FormData) {
   ) {
     throw new Error("月は1〜12の範囲で設定してください。");
   }
-
-  const carryoverAmount = Number.isFinite(carryover)
-    ? Math.round(carryover)
-    : 0;
 
   await prisma.$transaction([
     prisma.group.update({
@@ -78,14 +73,12 @@ async function saveAccountingSettingsAction(formData: FormData) {
         fiscalYearStartMonth: startMonth,
         fiscalYearEndMonth: endMonth,
         approvalFlow,
-        carryoverAmount,
       },
       create: {
         groupId: session.groupId,
         fiscalYearStartMonth: startMonth,
         fiscalYearEndMonth: endMonth,
         approvalFlow,
-        carryoverAmount,
       },
     }),
   ]);
@@ -254,7 +247,7 @@ async function fetchLedgerData(groupId: number, memberId: number, targetFiscalYe
   const currentFiscalYear = resolveFiscalYear(new Date(), fiscalYearStart);
   const fiscalYearToFetch = targetFiscalYear ?? currentFiscalYear;
 
-  const [budgets, fiscalYearClose] = await Promise.all([
+  const [budgets, fiscalYearClose, previousYearClose] = await Promise.all([
     prisma.budget.findMany({
       where: { groupId, fiscalYear: fiscalYearToFetch },
     }),
@@ -272,6 +265,18 @@ async function fetchLedgerData(groupId: number, memberId: number, targetFiscalYe
             displayName: true,
           },
         },
+      },
+    }),
+    prisma.fiscalYearClose.findUnique({
+      where: {
+        groupId_fiscalYear: {
+          groupId,
+          fiscalYear: fiscalYearToFetch - 1,
+        },
+      },
+      select: {
+        status: true,
+        nextCarryover: true,
       },
     }),
   ]);
@@ -307,6 +312,9 @@ async function fetchLedgerData(groupId: number, memberId: number, targetFiscalYe
       endDate: fiscalYearClose.endDate.toISOString(),
       confirmedAt: fiscalYearClose.confirmedAt?.toISOString() ?? null,
     } : undefined,
+    previousYearClose: previousYearClose && previousYearClose.status === "CONFIRMED"
+      ? { nextCarryover: previousYearClose.nextCarryover }
+      : undefined,
   };
 }
 
@@ -419,9 +427,10 @@ export default async function LedgerPage({ searchParams }: PageProps) {
     timeZone: "Asia/Tokyo",
   }).format(new Date());
   const applicantName = data.member?.displayName ?? "未設定";
-  const carryoverAmountLabel = `${numberFormatter.format(
-    setting.carryoverAmount ?? 0
-  )}円`;
+  const resolvedCarryover = data.previousYearClose
+    ? data.previousYearClose.nextCarryover
+    : (setting.carryoverAmount ?? 0);
+  const carryoverAmountLabel = `${numberFormatter.format(resolvedCarryover)}円`;
   const isBudgetEnabled = setting.budgetEnabled !== false;
   const budgetStatusLabel = isBudgetEnabled ? "有効" : "停止中";
   const overviewStats = [
@@ -680,7 +689,7 @@ export default async function LedgerPage({ searchParams }: PageProps) {
             会計年度と承認フロー
           </h2>
           <p className="mt-2 text-sm text-zinc-600">
-            会計期間、承認ステップ、前期繰越金、予算機能をまとめて設定します。
+            会計期間と承認ステップを設定します。繰越金は年度締めセクションで管理します。
           </p>
           <dl className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4">
@@ -712,7 +721,6 @@ export default async function LedgerPage({ searchParams }: PageProps) {
               currentFiscalYear={targetFiscalYear}
               startMonth={setting.fiscalYearStartMonth}
               endMonth={setting.fiscalYearEndMonth}
-              carryoverAmount={setting.carryoverAmount ?? 0}
               approvalFlow={setting.approvalFlow ?? ""}
               action={saveAccountingSettingsAction}
             />
@@ -987,6 +995,7 @@ export default async function LedgerPage({ searchParams }: PageProps) {
           fiscalYearEndMonth={setting.fiscalYearEndMonth}
           existingClose={data.fiscalYearClose}
           carryoverAmount={setting.carryoverAmount ?? 0}
+          previousYearClose={data.previousYearClose}
         />
       ),
     });

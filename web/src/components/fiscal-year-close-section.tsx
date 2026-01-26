@@ -45,6 +45,7 @@ type Props = {
   fiscalYearEndMonth: number;
   existingClose?: FiscalYearClose;
   carryoverAmount: number;
+  previousYearClose?: { nextCarryover: number };
 };
 
 export function FiscalYearCloseSection({
@@ -54,11 +55,22 @@ export function FiscalYearCloseSection({
   fiscalYearEndMonth,
   existingClose,
   carryoverAmount,
+  previousYearClose,
 }: Props) {
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fiscalYearClose, setFiscalYearClose] = useState<FiscalYearClose | undefined>(existingClose);
+  const [editingCarryover, setEditingCarryover] = useState(false);
+  const [carryoverInput, setCarryoverInput] = useState(String(carryoverAmount));
+  const [savingCarryover, setSavingCarryover] = useState(false);
+  const [currentCarryoverAmount, setCurrentCarryoverAmount] = useState(carryoverAmount);
+
+  // 繰越金の解決: 前年度確定あり → nextCarryover、なし → accountingSetting.carryoverAmount
+  const hasPreviousYearClose = Boolean(previousYearClose);
+  const resolvedCarryover = previousYearClose
+    ? previousYearClose.nextCarryover
+    : currentCarryoverAmount;
 
   const numberFormatter = new Intl.NumberFormat("ja-JP");
 
@@ -88,7 +100,6 @@ export function FiscalYearCloseSection({
           fiscalYear,
           startDate: startDateString,
           endDate: endDateString,
-          previousCarryover: carryoverAmount,
           action: "create",
         }),
       });
@@ -120,7 +131,6 @@ export function FiscalYearCloseSection({
           fiscalYear,
           startDate: startDateString,
           endDate: endDateString,
-          previousCarryover: carryoverAmount,
           action: "recalculate",
         }),
       });
@@ -197,6 +207,95 @@ export function FiscalYearCloseSection({
           <li>再計算：経費に変更があった場合は再計算ボタンで最新状態に更新</li>
           <li>確定：理事会や総会で承認されたら確定処理を実行（取消不可）</li>
         </ol>
+      </div>
+
+      {/* 前期繰越金の表示・編集 */}
+      <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+        <p className="text-xs uppercase tracking-wide text-zinc-500">前期繰越金</p>
+        {hasPreviousYearClose ? (
+          <div>
+            <p className="mt-2 text-2xl font-semibold text-zinc-900">
+              {numberFormatter.format(resolvedCarryover)}円
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              前年度（{fiscalYear - 1}年度）確定の次期繰越金より自動設定
+            </p>
+          </div>
+        ) : editingCarryover ? (
+          <div className="mt-2 space-y-3">
+            <label className="block text-sm text-zinc-600">
+              初年度繰越金（円）
+              <input
+                type="number"
+                value={carryoverInput}
+                onChange={(e) => setCarryoverInput(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+              />
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={savingCarryover}
+                onClick={async () => {
+                  setSavingCarryover(true);
+                  setError(null);
+                  try {
+                    const amount = Math.round(Number(carryoverInput) || 0);
+                    const res = await fetch("/api/accounting/carryover", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ carryoverAmount: amount }),
+                    });
+                    if (!res.ok) {
+                      const data = (await res.json().catch(() => ({}))) as { error?: string };
+                      setError(data.error ?? "保存に失敗しました。");
+                      return;
+                    }
+                    setCurrentCarryoverAmount(amount);
+                    setEditingCarryover(false);
+                    router.refresh();
+                  } catch {
+                    setError("通信エラーが発生しました。");
+                  } finally {
+                    setSavingCarryover(false);
+                  }
+                }}
+                className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-300"
+              >
+                {savingCarryover ? "保存中..." : "保存"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCarryoverInput(String(currentCarryoverAmount));
+                  setEditingCarryover(false);
+                }}
+                className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p className="mt-2 text-2xl font-semibold text-zinc-900">
+              {numberFormatter.format(resolvedCarryover)}円
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              初年度繰越金（前年度確定なし）
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setCarryoverInput(String(currentCarryoverAmount));
+                setEditingCarryover(true);
+              }}
+              className="mt-2 rounded-lg border border-zinc-300 bg-white px-3 py-1 text-xs font-semibold text-zinc-700 transition hover:border-sky-500 hover:text-sky-600"
+            >
+              変更する
+            </button>
+          </div>
+        )}
       </div>
 
       {error ? (

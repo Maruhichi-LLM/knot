@@ -163,8 +163,21 @@ export async function GET(request: Request) {
       totalExpense += totals.expense;
     }
 
-    // 前期繰越金
-    carryover = accountingSetting.carryoverAmount || 0;
+    // 前期繰越金: 前年度確定 → フォールバック accountingSetting.carryoverAmount
+    const previousYearClose = await prisma.fiscalYearClose.findUnique({
+      where: {
+        groupId_fiscalYear: {
+          groupId: member.groupId,
+          fiscalYear: fiscalYear - 1,
+        },
+      },
+      select: { status: true, nextCarryover: true },
+    });
+
+    carryover =
+      previousYearClose && previousYearClose.status === "CONFIRMED"
+        ? previousYearClose.nextCarryover
+        : (accountingSetting.carryoverAmount || 0);
     balance = carryover + totalIncome - totalExpense;
   }
 
