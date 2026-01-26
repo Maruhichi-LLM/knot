@@ -156,7 +156,7 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
       {/* メインコンテンツ */}
       <div className="flex flex-1 overflow-hidden">
         {/* サイドバー（メンバーリスト） */}
-        <aside className="w-64 flex-shrink-0 border-r border-zinc-200 bg-white overflow-y-auto">
+        <aside className="w-64 flex-shrink-0 border-r border-zinc-200 overflow-y-auto" style={{ backgroundImage: 'url(/images/honeycomb.png)', backgroundRepeat: 'no-repeat', backgroundSize: 'cover', backgroundPosition: 'center' }}>
           <div className="p-6">
             <h2 className="text-base font-semibold text-zinc-900">
               メンバー
@@ -188,7 +188,7 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
         </aside>
 
         {/* チャットエリア */}
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col bg-white">
           {/* メッセージエリア */}
           <div className="flex-1 overflow-y-auto">
             <div className="mx-auto max-w-4xl px-4 py-6">
@@ -280,7 +280,7 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
         </div>
 
         {/* サイドバー（ToDoリスト） */}
-        <aside className="w-80 flex-shrink-0 border-l border-zinc-200 bg-white overflow-y-auto">
+        <aside className="w-80 flex-shrink-0 overflow-y-auto" style={{ backgroundImage: 'url(/images/honeycomb.png)', backgroundRepeat: 'no-repeat', backgroundSize: 'cover', backgroundPosition: 'center' }}>
           <div className="p-6">
             <h2 className="text-base font-semibold text-zinc-900">
               このThreadから生まれたToDo
