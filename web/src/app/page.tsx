@@ -4,8 +4,10 @@ import { prisma } from "@/lib/prisma";
 import {
   MODULE_LINKS,
   AllModuleKey,
-  EXTENSION_MODULES,
+  ExtensionModuleKey,
+  EXTENSION_LINK_INFO,
   filterEnabledModules,
+  isExtensionModuleKey,
 } from "@/lib/modules";
 import { MODULE_METADATA } from "@/lib/module-metadata";
 
@@ -27,18 +29,10 @@ const VARIANT_STYLES = {
   },
 } as const;
 
-function isExtensionModuleKey(
-  key: string
-): key is (typeof EXTENSION_MODULES)[number] {
-  return EXTENSION_MODULES.includes(
-    key as (typeof EXTENSION_MODULES)[number]
-  );
-}
-
 export default async function RootPage() {
   const session = await getSessionFromCookies();
   let enabledCore = MODULE_LINKS.map((module) => module.key);
-  let enabledExtensions: Array<(typeof EXTENSION_MODULES)[number]> = [];
+  let enabledExtensions: ExtensionModuleKey[] = [];
   if (session) {
     const group = await prisma.group.findUnique({
       where: { id: session.groupId },
@@ -55,28 +49,26 @@ export default async function RootPage() {
     ...enabledExtensions,
   ]);
 
-  // 拡張モジュール用の情報を追加
-  const extensionModuleInfo = {
-    "event-budget": {
-      key: "event-budget" as const,
-      label: "Knot Event Budget Extension",
-      href: "/events/budget",
-    },
-  };
-
   const moduleMap = new Map(MODULE_LINKS.map((module) => [module.key, module]));
-  // 拡張モジュールもマップに追加
-  moduleMap.set("event-budget", extensionModuleInfo["event-budget"]);
+  (Object.keys(EXTENSION_LINK_INFO) as ExtensionModuleKey[]).forEach(
+    (key) => {
+      moduleMap.set(key, {
+        key,
+        label: EXTENSION_LINK_INFO[key].label,
+        href: EXTENSION_LINK_INFO[key].href,
+      });
+    }
+  );
 
   const moduleOrder: Array<AllModuleKey> = [
     "chat",
     "todo",
     "event",
+    "event-budget",
     "calendar",
     "accounting",
     "document",
     "export",
-    "event-budget",
     "management",
     "store",
   ];

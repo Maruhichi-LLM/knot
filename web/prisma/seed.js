@@ -58,6 +58,8 @@ async function main() {
         "chat",
         "todo",
         "store",
+        "export",
+        "document",
       ],
     },
   });
@@ -237,6 +239,84 @@ async function main() {
       accountId: accountByName["消耗品費"].id,
     },
   });
+
+  // --- 2024年度（2024年4月〜2025年3月）のLedger 100件 ---
+  const incomeAccounts = [
+    { name: "会費収入", titles: ["年会費徴収", "会費納入", "追加会費"] },
+    { name: "事業収入", titles: ["バザー売上", "教室参加費", "講座収入"] },
+    { name: "補助金等収入", titles: ["市補助金交付", "県助成金", "活動助成"] },
+    { name: "寄附金収入", titles: ["寄附金受領", "協賛金", "特別寄附"] },
+    { name: "雑収入", titles: ["利息入金", "雑入", "物品売却"] },
+    { name: "受取利息", titles: ["普通預金利息", "定期預金利息", "利子収入"] },
+    { name: "受取配当金", titles: ["配当金受領", "分配金入金", "投資収益"] },
+  ];
+
+  const expenseAccounts = [
+    { name: "給与賃金", titles: ["講師謝礼", "アルバイト代", "手当支給"] },
+    { name: "地代家賃", titles: ["会議室使用料", "事務所家賃", "駐車場代"] },
+    { name: "租税公課", titles: ["印紙代", "証明書手数料", "登録免許税"] },
+    { name: "水道光熱費", titles: ["電気代", "水道代", "ガス代"] },
+    { name: "旅費交通費", titles: ["タクシー代", "電車代", "出張旅費"] },
+    { name: "通信費", titles: ["切手代", "電話料金", "インターネット代"] },
+    { name: "消耗品費", titles: ["文房具購入", "コピー用紙", "トナー購入"] },
+    { name: "修繕費", titles: ["設備修理", "備品修繕", "施設補修"] },
+    { name: "支払手数料", titles: ["振込手数料", "代行手数料", "事務手数料"] },
+    { name: "広告宣伝費", titles: ["チラシ印刷", "ポスター制作", "広報費"] },
+    { name: "会議費", titles: ["茶菓子代", "弁当代", "飲料代"] },
+    { name: "交際費", titles: ["お礼品", "慶弔費", "手土産代"] },
+    { name: "支払保険料", titles: ["行事保険", "賠償保険", "火災保険"] },
+    { name: "福利厚生費", titles: ["親睦会費", "記念品代", "健康診断"] },
+    { name: "減価償却費", titles: ["パソコン償却", "プリンター償却", "備品償却"] },
+  ];
+
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function randomDate(start, end) {
+    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+  }
+
+  const fy2024Start = new Date(2024, 3, 1);   // 2024年4月1日
+  const fy2024End = new Date(2025, 2, 31);     // 2025年3月31日
+
+  const ledgerData = [];
+  const creators = [owner.id, accountant.id];
+
+  // 収入 30件
+  for (let i = 0; i < 30; i++) {
+    const acc = incomeAccounts[i % incomeAccounts.length];
+    const titleList = acc.titles;
+    ledgerData.push({
+      groupId: group.id,
+      createdByMemberId: creators[i % creators.length],
+      title: titleList[i % titleList.length],
+      amount: randomInt(5000, 100000),
+      transactionDate: randomDate(fy2024Start, fy2024End),
+      notes: `${acc.name}（自動生成）`,
+      status: "APPROVED",
+      accountId: accountByName[acc.name].id,
+    });
+  }
+
+  // 支出 70件
+  for (let i = 0; i < 70; i++) {
+    const acc = expenseAccounts[i % expenseAccounts.length];
+    const titleList = acc.titles;
+    ledgerData.push({
+      groupId: group.id,
+      createdByMemberId: creators[i % creators.length],
+      title: titleList[i % titleList.length],
+      amount: randomInt(1000, 50000),
+      transactionDate: randomDate(fy2024Start, fy2024End),
+      notes: `${acc.name}（自動生成）`,
+      status: "APPROVED",
+      accountId: accountByName[acc.name].id,
+    });
+  }
+
+  await prisma.ledger.createMany({ data: ledgerData });
+  console.log(`  → 2024年度 Ledger ${ledgerData.length}件を作成しました`);
 
   const event = await prisma.event.create({
     data: {

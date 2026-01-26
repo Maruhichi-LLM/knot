@@ -4,7 +4,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import {
   MODULE_LINKS,
-  filterEnabledModules,
   ModuleKey,
   resolveModules,
 } from "@/lib/modules";
@@ -29,22 +28,36 @@ export const metadata: Metadata = {
 
 async function fetchLayoutContext() {
   const session = await getSessionFromCookies();
-  let enabledModules: (typeof MODULE_LINKS)[number][] = [...MODULE_LINKS];
-  let enabledSet = new Set<ModuleKey>(enabledModules.map((mod) => mod.key));
+  let enabledModules: ModuleKey[] = MODULE_LINKS.map((module) => module.key);
   if (session) {
     const group = await prisma.group.findUnique({
       where: { id: session.groupId },
       select: { enabledModules: true },
     });
     const resolved = resolveModules(group?.enabledModules);
-    enabledSet = new Set(resolved);
-    enabledModules = filterEnabledModules(resolved);
+    enabledModules = resolved;
   }
-  const moduleStates = MODULE_LINKS.map((module) => ({
-    ...module,
-    enabled: enabledSet.has(module.key as ModuleKey),
-  }));
-  const moduleMap = new Map(moduleStates.map((module) => [module.key, module]));
+  const enabledSet = new Set<ModuleKey>(enabledModules);
+
+  type NavEntry = {
+    key: ModuleKey;
+    label: string;
+    href: string;
+    enabled: boolean;
+  };
+
+  const moduleMap = new Map<ModuleKey, NavEntry>(
+    MODULE_LINKS.map((module) => [
+      module.key,
+      {
+        key: module.key,
+        label: module.label,
+        href: module.href,
+        enabled: enabledSet.has(module.key),
+      },
+    ])
+  );
+
   const navOrder: ModuleKey[] = [
     "chat",
     "todo",
@@ -52,12 +65,13 @@ async function fetchLayoutContext() {
     "calendar",
     "accounting",
     "document",
+    "export",
     "management",
     "store",
   ];
   const navItems = navOrder
     .map((key) => moduleMap.get(key))
-    .filter((item) => item !== undefined);
+    .filter((item): item is NavEntry => item !== undefined);
 
   return { session, navItems };
 }
@@ -76,11 +90,11 @@ export default async function RootLayout({
         <div className="bg-honeycomb" aria-hidden="true" />
         <div className="min-h-screen">
           <header className="border-b border-zinc-200 bg-white">
-            <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-4">
+            <div className="mx-auto flex w-full max-w-[90rem] items-center justify-between px-8 py-4">
               <Link href="/" className="text-lg font-semibold tracking-wide">
                 Knot
               </Link>
-              <nav className="flex flex-shrink overflow-x-auto whitespace-nowrap gap-4 text-sm font-medium text-zinc-600">
+              <nav className="flex flex-wrap justify-end gap-3 text-sm font-medium text-zinc-600">
                 {navItems.map((item) =>
                   item.enabled ? (
                     <Link

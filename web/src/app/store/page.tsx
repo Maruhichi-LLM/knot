@@ -6,7 +6,6 @@ import {
   MODULE_LINKS,
   ModuleKey,
   AllModuleKey,
-  EXTENSION_MODULES,
   SYSTEM_MODULES,
 } from "@/lib/modules";
 import { MODULE_METADATA } from "@/lib/module-metadata";
@@ -19,10 +18,11 @@ const moduleLabelMap = new Map(
   MODULE_LINKS.map((module) => [module.key, module.label])
 );
 
-const STORE_DISPLAY_ORDER: ModuleKey[] = [
+const STORE_DISPLAY_ORDER: AllModuleKey[] = [
   "chat",
   "todo",
   "event",
+  "event-budget",
   "calendar",
   "accounting",
   "document",
@@ -73,21 +73,23 @@ const FUTURE_MODULES: StoreEntry[] = [
 ];
 
 function buildStoreEntries(): StoreEntry[] {
-  const managedEntries: StoreEntry[] = STORE_DISPLAY_ORDER.map((key) => {
-    const metadata = MODULE_METADATA[key];
-    const isSystemModule = SYSTEM_MODULES.includes(key);
-    return {
-      key,
-      title: moduleLabelMap.get(key) ?? "Knot Module",
-      description: metadata?.description ?? "",
-      badge: metadata?.badge,
-      state: isSystemModule ? "system" : "available",
-      toggleable: !isSystemModule,
-      note: isSystemModule ? "システムモジュールのため常時オン" : undefined,
-    };
-  });
+  const orderedEntries: StoreEntry[] = STORE_DISPLAY_ORDER.map((key) => {
+    if (moduleLabelMap.has(key as ModuleKey)) {
+      const metadata = MODULE_METADATA[key];
+      const isSystemModule = SYSTEM_MODULES.includes(key as ModuleKey);
+      return {
+        key,
+        title: moduleLabelMap.get(key as ModuleKey) ?? "Knot Module",
+        description: metadata?.description ?? "",
+        badge: metadata?.badge,
+        state: isSystemModule ? "system" : "available",
+        toggleable: !isSystemModule,
+        note: isSystemModule
+          ? "システムモジュールのため常時オン"
+          : undefined,
+      };
+    }
 
-  const extensionEntries: StoreEntry[] = EXTENSION_MODULES.map((key) => {
     const metadata = EXTENSION_MODULE_METADATA[key];
     return {
       key,
@@ -100,7 +102,7 @@ function buildStoreEntries(): StoreEntry[] {
     };
   });
 
-  return [...managedEntries, ...extensionEntries, ...FUTURE_MODULES];
+  return [...orderedEntries, ...FUTURE_MODULES];
 }
 
 export default async function StorePage() {

@@ -18,6 +18,23 @@ export const MODULE_LINKS = [
 export const EXTENSION_MODULES = ["event-budget"] as const;
 
 export type ExtensionModuleKey = (typeof EXTENSION_MODULES)[number];
+
+export const EXTENSION_LINK_INFO: Record<
+  ExtensionModuleKey,
+  { label: string; href: string }
+> = {
+  "event-budget": {
+    label: "Knot Event Budget Extension",
+    href: "/events/budget",
+  },
+};
+
+export function isExtensionModuleKey(
+  value: string
+): value is ExtensionModuleKey {
+  return EXTENSION_MODULES.includes(value as ExtensionModuleKey);
+}
+
 export type AllModuleKey = ModuleKey | ExtensionModuleKey;
 
 export type ModuleKey = (typeof MODULE_LINKS)[number]["key"];
