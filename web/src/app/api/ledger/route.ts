@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { revalidatePath } from "next/cache";
+import { AuditActionType, AuditTargetType, Prisma } from "@prisma/client";
 import {
   assertSameOrigin,
   CSRF_ERROR_MESSAGE,
@@ -10,6 +11,7 @@ import {
   getRateLimitRule,
   buildRateLimitKey,
 } from "@/lib/security";
+import { extractClientMeta, recordAuditLog } from "@/lib/audit";
 
 type CreateLedgerRequest = {
   title?: string;
@@ -113,6 +115,18 @@ export async function POST(request: Request) {
       notes,
       accountId: account.id,
     },
+  });
+
+  const clientMeta = extractClientMeta(request);
+  await recordAuditLog({
+    groupId: session.groupId,
+    actorMemberId: session.memberId,
+    actionType: AuditActionType.CREATE,
+    targetType: AuditTargetType.LEDGER,
+    targetId: ledger.id,
+    afterJson: ledger as unknown as Prisma.JsonValue,
+    ipAddress: clientMeta.ipAddress,
+    userAgent: clientMeta.userAgent,
   });
 
   revalidatePath("/accounting");

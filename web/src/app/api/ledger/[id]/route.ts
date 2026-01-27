@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { revalidatePath } from "next/cache";
+import { AuditActionType, AuditTargetType, Prisma } from "@prisma/client";
 import {
   assertSameOrigin,
   CSRF_ERROR_MESSAGE,
@@ -10,6 +11,7 @@ import {
   getRateLimitRule,
   buildRateLimitKey,
 } from "@/lib/security";
+import { extractClientMeta, recordAuditLog } from "@/lib/audit";
 
 type UpdateLedgerRequest = {
   ledgerId?: number | string;
@@ -126,6 +128,22 @@ export async function PATCH(
     });
   });
 
+  const clientMeta = extractClientMeta(request);
+  await recordAuditLog({
+    groupId: session.groupId,
+    actorMemberId: session.memberId,
+    actionType:
+      action === "approve"
+        ? AuditActionType.APPROVE
+        : AuditActionType.REJECT,
+    targetType: AuditTargetType.LEDGER,
+    targetId: updatedLedger.id,
+    beforeJson: ledger as unknown as Prisma.JsonValue,
+    afterJson: updatedLedger as unknown as Prisma.JsonValue,
+    ipAddress: clientMeta.ipAddress,
+    userAgent: clientMeta.userAgent,
+  });
+
   revalidatePath("/accounting");
 
   return NextResponse.json({ success: true, ledger: updatedLedger });
@@ -200,6 +218,18 @@ export async function DELETE(
       where: { id: ledger.id },
     }),
   ]);
+
+  const clientMeta = extractClientMeta(request);
+  await recordAuditLog({
+    groupId: session.groupId,
+    actorMemberId: session.memberId,
+    actionType: AuditActionType.DELETE,
+    targetType: AuditTargetType.LEDGER,
+    targetId: ledger.id,
+    beforeJson: ledger as unknown as Prisma.JsonValue,
+    ipAddress: clientMeta.ipAddress,
+    userAgent: clientMeta.userAgent,
+  });
 
   revalidatePath("/accounting");
 

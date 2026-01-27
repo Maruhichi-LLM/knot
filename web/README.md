@@ -58,6 +58,39 @@ npx prisma db seed
      -d '{\"title\":\"test\",\"amount\":1000,\"accountId\":1,\"transactionDate\":\"2024-01-01\"}'
    ```
 
+## Knot Audit モジュール
+
+Knot Audit は「監査ログ」「内部統制チェック」「指摘管理」を統合したモジュールです。`/audit` にアクセスできるのは `ADMIN` / `ACCOUNTANT` / `AUDITOR` もしくは `PLATFORM_ADMIN_EMAIL` のみです。
+
+### API エンドポイント
+
+- `GET /api/audit/logs?from&to&actorId&targetType&query` – 監査ログの検索 (page filters が利用)
+- `GET /api/audit/findings?status&severity&from&to` – 指摘一覧の取得
+- `POST /api/audit/findings` / `PATCH /api/audit/findings/:id` – 指摘の登録・更新
+- `POST /api/audit/run-internal-controls` – アクティブな内部統制ルールを実行して検知結果を返却
+
+### 内部統制チェック（Phase1）
+
+以下 4 つの検知を実装しています（結果はメモリ返却、Phase2で永続化予定）。
+
+1. **SEGREGATION_OF_DUTIES**: Ledger 作成者と承認者が同一の場合を抽出
+2. **MULTI_APPROVAL_FOR_AMOUNT**: 閾値（デフォルト 5 万円）以上かつ承認人数不足
+3. **NO_APPROVAL_NO_CONFIRM**: 承認ゼロで `APPROVED` になっている Ledger
+4. **MISSING_SOURCE_LINK**: `sourceThreadId/sourceChatMessageId` が無い会計レコード
+
+### 指摘（AuditFinding）
+
+- `logIds (Int[])` と `targetRefs (Json)` で AuditLog と対象を紐付け
+- 重大度・ステータス変更時は `AuditLog` に UPDATE が残るため追跡が可能
+
+### 手動確認チェックリスト
+
+1. `/accounting` で Ledger を登録 → `/audit` の監査ログに反映されるか
+2. Ledger を承認/却下 → before/after JSON が保存されているか
+3. `/audit` → 「内部統制チェック」で `チェックを実行` し、上記 4 ルールが返るか
+4. 指摘を作成し、ステータスを `OPEN → RESOLVED` に変更できるか
+5. `/api/audit/logs` を curl 等で叩き、権限の無いメンバーでは 401 になるか
+
 ## Getting Started
 
 First, run the development server:

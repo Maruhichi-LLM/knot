@@ -27,8 +27,9 @@ model Group {
   documents            Document[]
   eventBudgets         EventBudget[]
   fiscalYearCloses     FiscalYearClose[]
-  audits               Audit[]
   auditLogs            AuditLog[]
+  internalControlRules InternalControlRule[]
+  auditFindings        AuditFinding[]
   approvalTemplates    ApprovalTemplate[]
   approvalRoutes       ApprovalRoute[]
   approvalApplications ApprovalApplication[]
@@ -57,8 +58,10 @@ model Member {
   eventTransactionsCreated EventTransaction[]  @relation("EventTransactionCreatedBy")
   eventBudgetImports      EventBudgetImport[]  @relation("EventBudgetImportedBy")
   fiscalYearClosesConfirmed FiscalYearClose[]  @relation("FiscalYearCloseConfirmedBy")
-  auditsConducted         Audit[]              @relation("AuditAuditor")
   auditLogs               AuditLog[]
+  createdInternalControlRules InternalControlRule[] @relation("RuleCreatedBy")
+  createdAuditFindings    AuditFinding[]        @relation("AuditFindingCreatedBy")
+  assignedAuditFindings   AuditFinding[]        @relation("AuditFindingAssignee")
   approvalApplications    ApprovalApplication[] @relation("ApplicationApplicant")
   approvalAssignments     ApprovalAssignment[]
 }
@@ -163,27 +166,56 @@ enum AttendanceStatus {
   MAYBE
 }
 
-enum AuditType {
-  FINANCIAL
-  ACTIVITY
+enum AuditActionType {
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  REJECT
+  CONFIRM
+  IMPORT
+  OTHER
 }
 
-enum AuditStatus {
-  PLANNED
-  IN_PROGRESS
-  COMPLETED
+enum AuditTargetType {
+  LEDGER
+  EVENT
+  TODO
+  DOCUMENT
+  MEMBER
+  SETTING
+  AUDIT_FINDING
+  FISCAL_YEAR_CLOSE
+  EVENT_BUDGET
+  EVENT_TRANSACTION
+  EVENT_BUDGET_IMPORT
+  APPROVAL
+  ACCOUNT
+}
+
+enum InternalControlRuleType {
+  SEGREGATION_OF_DUTIES
+  MULTI_APPROVAL_FOR_AMOUNT
+  NO_APPROVAL_NO_CONFIRM
+  BUDGET_OVERAGE_ALERT
+  MISSING_SOURCE_LINK
+}
+
+enum InternalControlSeverity {
+  INFO
+  WARN
+  CRITICAL
 }
 
 enum AuditFindingCategory {
-  ISSUE
-  SUGGESTION
-  OBSERVATION
+  FINANCIAL
+  INTERNAL_CONTROL
 }
 
 enum AuditFindingSeverity {
-  HIGH
-  MEDIUM
-  LOW
+  INFO
+  WARN
+  CRITICAL
 }
 
 enum AuditFindingStatus {
@@ -192,60 +224,68 @@ enum AuditFindingStatus {
   RESOLVED
 }
 
-model Audit {
-  id          Int          @id @default(autoincrement())
-  groupId     Int
-  group       Group        @relation(fields: [groupId], references: [id])
-  auditorId   Int
-  auditor     Member       @relation("AuditAuditor", fields: [auditorId], references: [id])
-  type        AuditType
-  fiscalYear  Int
-  startDate   DateTime
-  endDate     DateTime
-  status      AuditStatus  @default(PLANNED)
-  report      String?
-  findings    AuditFinding[]
-  completedAt DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+model AuditLog {
+  id                 Int              @id @default(autoincrement())
+  groupId            Int
+  group              Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  actorMemberId      Int?
+  actor              Member?          @relation(fields: [actorMemberId], references: [id])
+  actionType         AuditActionType
+  targetType         AuditTargetType
+  targetId           Int?
+  beforeJson         Json?
+  afterJson          Json?
+  sourceThreadId     Int?
+  sourceThread       ChatThread?      @relation("AuditLogThread", fields: [sourceThreadId], references: [id])
+  sourceChatMessageId Int?
+  sourceChatMessage  ChatMessage?     @relation("AuditLogMessage", fields: [sourceChatMessageId], references: [id])
+  ipAddress          String?
+  userAgent          String?
+  createdAt          DateTime         @default(now())
 
-  @@index([groupId])
-  @@index([auditorId])
+  @@index([groupId, createdAt])
+  @@index([groupId, targetType, targetId])
+  @@index([groupId, actorMemberId, createdAt])
+}
+
+model InternalControlRule {
+  id               Int                        @id @default(autoincrement())
+  groupId          Int
+  group            Group                      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdByMemberId Int?
+  createdBy        Member?                    @relation("RuleCreatedBy", fields: [createdByMemberId], references: [id])
+  name             String
+  description      String?
+  ruleType         InternalControlRuleType
+  conditionJson    Json
+  severity         InternalControlSeverity    @default(INFO)
+  isActive         Boolean                    @default(true)
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+
+  @@index([groupId, isActive])
 }
 
 model AuditFinding {
-  id                Int                 @id @default(autoincrement())
-  auditId           Int
-  audit             Audit               @relation(fields: [auditId], references: [id])
+  id                Int                   @id @default(autoincrement())
+  groupId           Int
+  group             Group                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  title             String
+  description       String
   category          AuditFindingCategory
   severity          AuditFindingSeverity
-  description       String
-  relatedRecordType String?
-  relatedRecordId   Int?
-  recommendation    String?
-  status            AuditFindingStatus  @default(OPEN)
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  status            AuditFindingStatus     @default(OPEN)
+  logIds            Int[]                  @default([])
+  targetRefs        Json?
+  assigneeMemberId  Int?
+  assignee          Member?                @relation("AuditFindingAssignee", fields: [assigneeMemberId], references: [id])
+  createdByMemberId Int
+  createdBy         Member                 @relation("AuditFindingCreatedBy", fields: [createdByMemberId], references: [id])
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
 
-  @@index([auditId])
-}
-
-model AuditLog {
-  id           Int      @id @default(autoincrement())
-  groupId      Int
-  group        Group    @relation(fields: [groupId], references: [id])
-  memberId     Int?
-  member       Member?  @relation(fields: [memberId], references: [id])
-  action       String
-  targetType   String
-  targetId     Int?
-  previousValue Json?
-  newValue     Json?
-  ipAddress    String?
-  createdAt    DateTime @default(now())
-
-  @@index([groupId])
-  @@index([memberId])
+  @@index([groupId, status])
+  @@index([groupId, severity])
 }
 model PersonalEvent {
   id          Int      @id @default(autoincrement())
@@ -346,6 +386,7 @@ model ChatThread {
   todoItems    TodoItem[]
   ledgerEntries Ledger[]     @relation("LedgerThread")
   documents    Document[]    @relation("DocumentThread")
+  auditLogs    AuditLog[]    @relation("AuditLogThread")
 
   @@index([groupId, status])
   @@index([groupId, sourceType, sourceId])
@@ -365,6 +406,7 @@ model ChatMessage {
   todoItems TodoItem[]
   ledgerEntries Ledger[] @relation("LedgerSourceChat")
   documents Document[]   @relation("DocumentSourceChat")
+  auditLogs AuditLog[]   @relation("AuditLogMessage")
 
   @@index([threadId, createdAt])
   @@index([authorId, createdAt])

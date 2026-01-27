@@ -5,6 +5,8 @@ const {
   FinancialAccountType,
   ThreadSourceType,
   ThreadStatus,
+  InternalControlRuleType,
+  InternalControlSeverity,
 } = pkg;
 
 const THREAD_SOURCE = ThreadSourceType ?? {
@@ -60,6 +62,7 @@ async function main() {
         "store",
         "export",
         "document",
+        "audit",
       ],
     },
   });
@@ -96,6 +99,48 @@ async function main() {
         email: "demo-accountant@example.com",
       passwordHash: accountantPasswordHash,
     },
+  });
+
+  await prisma.internalControlRule.createMany({
+    data: [
+      {
+        groupId: group.id,
+        createdByMemberId: owner.id,
+        name: "職務分掌: 作成者と承認者の分離",
+        description:
+          "Ledgerの作成者と承認者が同一の場合に警告を出します。",
+        ruleType: InternalControlRuleType.SEGREGATION_OF_DUTIES,
+        conditionJson: { forbidSelfApprove: true },
+        severity: InternalControlSeverity.WARN,
+      },
+      {
+        groupId: group.id,
+        createdByMemberId: owner.id,
+        name: "高額経費の複数承認",
+        description: "5万円以上の経費は2名以上の承認が必要です。",
+        ruleType: InternalControlRuleType.MULTI_APPROVAL_FOR_AMOUNT,
+        conditionJson: { amountGte: 50000, requiredApprovals: 2 },
+        severity: InternalControlSeverity.CRITICAL,
+      },
+      {
+        groupId: group.id,
+        createdByMemberId: owner.id,
+        name: "承認なし確定の禁止",
+        description: "承認ゼロで確定したLedgerを検出します。",
+        ruleType: InternalControlRuleType.NO_APPROVAL_NO_CONFIRM,
+        conditionJson: { requireApprovalCount: 1 },
+        severity: InternalControlSeverity.CRITICAL,
+      },
+      {
+        groupId: group.id,
+        createdByMemberId: owner.id,
+        name: "証憑リンクの欠落検知",
+        description: "sourceThreadIdまたはsourceChatMessageIdが無い記録を抽出します。",
+        ruleType: InternalControlRuleType.MISSING_SOURCE_LINK,
+        conditionJson: { requireSourceLink: true },
+        severity: InternalControlSeverity.INFO,
+      },
+    ],
   });
 
   const defaultAccounts = [
