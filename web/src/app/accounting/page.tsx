@@ -989,7 +989,6 @@ export default async function LedgerPage({ searchParams }: PageProps) {
       content: (
         <FiscalYearCloseSection
           key="fiscal-year-close-section"
-          groupId={session.groupId}
           fiscalYear={targetFiscalYear}
           fiscalYearStartMonth={setting.fiscalYearStartMonth}
           fiscalYearEndMonth={setting.fiscalYearEndMonth}

@@ -209,7 +209,6 @@ export default async function EventDetailPage({
                   }
                 : null
             }
-            groupId={session.groupId}
             canEdit={canEdit}
           />
         )}

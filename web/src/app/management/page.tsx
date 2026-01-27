@@ -3,10 +3,27 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { revalidatePath } from "next/cache";
-import { ROLE_ADMIN, ROLE_ACCOUNTANT, ROLE_MEMBER } from "@/lib/roles";
+import {
+  ROLE_ADMIN,
+  ROLE_ACCOUNTANT,
+  ROLE_AUDITOR,
+  ROLE_MEMBER,
+} from "@/lib/roles";
 import { ensureModuleEnabled } from "@/lib/modules";
 
-const ROLE_OPTIONS = [ROLE_ADMIN, ROLE_ACCOUNTANT, ROLE_MEMBER] as const;
+const ROLE_OPTIONS = [
+  ROLE_ADMIN,
+  ROLE_ACCOUNTANT,
+  ROLE_AUDITOR,
+  ROLE_MEMBER,
+] as const;
+
+const ROLE_LABELS: Record<string, string> = {
+  [ROLE_ADMIN]: "管理者",
+  [ROLE_ACCOUNTANT]: "会計担当",
+  [ROLE_AUDITOR]: "監査役",
+  [ROLE_MEMBER]: "メンバー",
+};
 
 function generateInviteCodeValue() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -203,7 +220,7 @@ export default async function ManagementPage() {
                     >
                       {ROLE_OPTIONS.map((roleValue) => (
                         <option key={roleValue} value={roleValue}>
-                          {roleValue}
+                          {ROLE_LABELS[roleValue] ?? roleValue}
                         </option>
                       ))}
                     </select>
@@ -242,8 +259,8 @@ export default async function ManagementPage() {
                             <p className="font-mono text-base font-semibold text-zinc-900">
                               {invite.code}
                             </p>
-                            <span className="text-xs uppercase tracking-wide text-zinc-500">
-                              {invite.role}
+                            <span className="text-xs font-semibold text-zinc-500">
+                              {ROLE_LABELS[invite.role] ?? invite.role}
                             </span>
                           </div>
                           <p className="mt-1 text-xs text-zinc-500">
@@ -309,7 +326,7 @@ export default async function ManagementPage() {
                             >
                               {ROLE_OPTIONS.map((roleValue) => (
                                 <option key={roleValue} value={roleValue}>
-                                  {roleValue}
+                                  {ROLE_LABELS[roleValue] ?? roleValue}
                                 </option>
                               ))}
                             </select>

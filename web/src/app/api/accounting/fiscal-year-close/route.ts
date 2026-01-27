@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
-import { FiscalYearCloseStatus } from "@prisma/client";
+import { FiscalYearCloseStatus, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import {
   assertSameOrigin,
@@ -318,6 +318,8 @@ export async function POST(request: Request) {
   }
 
   // 作成または再計算
+  const statementPayload: Prisma.JsonValue = statement;
+
   if (existing) {
     // 更新（再計算）
     const updated = await prisma.fiscalYearClose.update({
@@ -330,7 +332,7 @@ export async function POST(request: Request) {
         balance: statement.balance,
         previousCarryover: statement.previousCarryover,
         nextCarryover: statement.nextCarryover,
-        statement: statement as any,
+        statement: statementPayload,
       },
       include: {
         confirmedBy: {
@@ -358,7 +360,7 @@ export async function POST(request: Request) {
         balance: statement.balance,
         previousCarryover: statement.previousCarryover,
         nextCarryover: statement.nextCarryover,
-        statement: statement as any,
+        statement: statementPayload,
       },
       include: {
         confirmedBy: {

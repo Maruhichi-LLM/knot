@@ -7,6 +7,7 @@ import {
   AllModuleKey,
   EXTENSION_MODULES,
   SYSTEM_MODULES,
+  isExtensionModuleKey,
 } from "@/lib/modules";
 import {
   assertSameOrigin,
@@ -27,7 +28,7 @@ const TOGGLEABLE_KEYS: AllModuleKey[] = [
 function isAllModuleKey(value: string): value is AllModuleKey {
   return (
     MODULE_LINKS.some((module) => module.key === value) ||
-    EXTENSION_MODULES.includes(value as any)
+    isExtensionModuleKey(value)
   );
 }
 

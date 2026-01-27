@@ -43,8 +43,6 @@ export function DocumentCreateForm({ isAdmin, adminGroups = [], defaultGroupId, 
         return;
       }
 
-      const data = (await response.json()) as { success: boolean; documentId: number };
-
       // アップロード成功後、一覧ページに戻ってリフレッシュ
       router.push("/documents");
       router.refresh();

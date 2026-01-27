@@ -39,7 +39,6 @@ type FiscalYearClose = {
 };
 
 type Props = {
-  groupId: number;
   fiscalYear: number;
   fiscalYearStartMonth: number;
   fiscalYearEndMonth: number;
@@ -49,7 +48,6 @@ type Props = {
 };
 
 export function FiscalYearCloseSection({
-  groupId,
   fiscalYear,
   fiscalYearStartMonth,
   fiscalYearEndMonth,

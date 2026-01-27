@@ -27,6 +27,8 @@ model Group {
   documents            Document[]
   eventBudgets         EventBudget[]
   fiscalYearCloses     FiscalYearClose[]
+  audits               Audit[]
+  auditLogs            AuditLog[]
 }
 
 model Member {
@@ -52,6 +54,8 @@ model Member {
   eventTransactionsCreated EventTransaction[]  @relation("EventTransactionCreatedBy")
   eventBudgetImports      EventBudgetImport[]  @relation("EventBudgetImportedBy")
   fiscalYearClosesConfirmed FiscalYearClose[]  @relation("FiscalYearCloseConfirmedBy")
+  auditsConducted         Audit[]              @relation("AuditAuditor")
+  auditLogs               AuditLog[]
 }
 
 model InviteCode {
@@ -152,6 +156,91 @@ enum AttendanceStatus {
   YES
   NO
   MAYBE
+}
+
+enum AuditType {
+  FINANCIAL
+  ACTIVITY
+}
+
+enum AuditStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum AuditFindingCategory {
+  ISSUE
+  SUGGESTION
+  OBSERVATION
+}
+
+enum AuditFindingSeverity {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum AuditFindingStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+model Audit {
+  id          Int          @id @default(autoincrement())
+  groupId     Int
+  group       Group        @relation(fields: [groupId], references: [id])
+  auditorId   Int
+  auditor     Member       @relation("AuditAuditor", fields: [auditorId], references: [id])
+  type        AuditType
+  fiscalYear  Int
+  startDate   DateTime
+  endDate     DateTime
+  status      AuditStatus  @default(PLANNED)
+  report      String?
+  findings    AuditFinding[]
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([groupId])
+  @@index([auditorId])
+}
+
+model AuditFinding {
+  id                Int                 @id @default(autoincrement())
+  auditId           Int
+  audit             Audit               @relation(fields: [auditId], references: [id])
+  category          AuditFindingCategory
+  severity          AuditFindingSeverity
+  description       String
+  relatedRecordType String?
+  relatedRecordId   Int?
+  recommendation    String?
+  status            AuditFindingStatus  @default(OPEN)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([auditId])
+}
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  groupId      Int
+  group        Group    @relation(fields: [groupId], references: [id])
+  memberId     Int?
+  member       Member?  @relation(fields: [memberId], references: [id])
+  action       String
+  targetType   String
+  targetId     Int?
+  previousValue Json?
+  newValue     Json?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  @@index([groupId])
+  @@index([memberId])
 }
 model PersonalEvent {
   id          Int      @id @default(autoincrement())

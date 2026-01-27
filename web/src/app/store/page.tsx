@@ -27,6 +27,7 @@ const STORE_DISPLAY_ORDER: AllModuleKey[] = [
   "accounting",
   "document",
   "export",
+  "audit",
   "management",
   "store",
 ];

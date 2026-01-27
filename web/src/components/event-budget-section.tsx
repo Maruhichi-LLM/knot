@@ -40,7 +40,6 @@ type Props = {
   eventId: number;
   eventTitle: string;
   eventBudget: EventBudgetData | null;
-  groupId: number;
   canEdit: boolean;
 };
 
@@ -73,7 +72,6 @@ export function EventBudgetSection({
   eventId,
   eventTitle,
   eventBudget,
-  groupId,
   canEdit,
 }: Props) {
   const router = useRouter();
@@ -249,11 +247,7 @@ export function EventBudgetSection({
 
       {/* 収支記録 */}
       {!isReadOnly && canEdit && (
-        <TransactionForm
-          eventId={eventId}
-          groupId={groupId}
-          onSuccess={() => router.refresh()}
-        />
+        <TransactionForm eventId={eventId} onSuccess={() => router.refresh()} />
       )}
 
       {/* 取引一覧 */}
@@ -621,11 +615,9 @@ function BudgetActions({
 // 収支記録フォーム
 function TransactionForm({
   eventId,
-  groupId,
   onSuccess,
 }: {
   eventId: number;
-  groupId: number;
   onSuccess: () => void;
 }) {
   const [type, setType] = useState<"REVENUE" | "EXPENSE">("EXPENSE");

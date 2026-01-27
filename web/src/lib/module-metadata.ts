@@ -1,4 +1,4 @@
-import { ModuleKey, AllModuleKey } from "./modules";
+import { AllModuleKey } from "./modules";
 
 type ModuleVariant = "default" | "system";
 
@@ -52,6 +52,11 @@ export const MODULE_METADATA: Record<AllModuleKey, ModuleMetadata> = {
     description:
       "イベント出欠表や収支計算書など、各モジュールのデータをCSV・PDFで出力できます。",
     badge: "エクスポート / Export",
+  },
+  audit: {
+    description:
+      "会計・活動の監査を計画し、指摘事項や改善提案を記録できるガバナンスモジュールです。",
+    badge: "監査 / Governance",
   },
   "event-budget": {
     description:

@@ -66,6 +66,7 @@ async function fetchLayoutContext() {
     "accounting",
     "document",
     "export",
+    "audit",
     "management",
     "store",
   ];

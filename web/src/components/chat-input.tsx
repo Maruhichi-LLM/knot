@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState, useRef, useEffect, KeyboardEvent } from "react";
+import { FormEvent, useState, useRef, KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 
 type Member = {
