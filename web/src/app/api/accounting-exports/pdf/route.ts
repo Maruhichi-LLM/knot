@@ -354,8 +354,21 @@ export async function GET(request: Request) {
     });
     currentY -= 30;
 
+    const fiscalYearStartDate = new Date(fiscalYear, fiscalYearStartMonth - 1, 1);
+    const fiscalYearEndYear =
+      fiscalYearEndMonth < fiscalYearStartMonth ? fiscalYear + 1 : fiscalYear;
+    const fiscalYearEndDate = new Date(
+      fiscalYearEndYear,
+      fiscalYearEndMonth,
+      0
+    );
+    const formatDateLabel = (date: Date) =>
+      `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+
     // 会計年度
-    const fiscalYearText = `会計年度: ${fiscalYear}年${fiscalYearStartMonth}月 〜 ${fiscalYearEndMonth < fiscalYearStartMonth ? fiscalYear + 1 : fiscalYear}年${fiscalYearEndMonth}月`;
+    const fiscalYearText = `会計年度: ${formatDateLabel(
+      fiscalYearStartDate
+    )} 〜 ${formatDateLabel(fiscalYearEndDate)}`;
     page.drawText(fiscalYearText, {
       x: 50,
       y: currentY,
