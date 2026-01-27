@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { ROLE_ADMIN } from "@/lib/roles";
-import { ensureModuleEnabled } from "@/lib/modules";
+import { ensureModuleEnabled, isModuleEnabled } from "@/lib/modules";
 import {
   assertSameOrigin,
   CSRF_ERROR_MESSAGE,
@@ -44,7 +44,10 @@ export async function GET() {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  await ensureModuleEnabled(session.groupId, "approval");
+  const enabled = await isModuleEnabled(session.groupId, "approval");
+  if (!enabled) {
+    return NextResponse.json({ routes: [] });
+  }
 
   const routes = await prisma.approvalRoute.findMany({
     where: { groupId: session.groupId },
