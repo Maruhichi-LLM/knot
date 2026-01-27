@@ -56,9 +56,9 @@ function normalizeLogIds(value: unknown): number[] {
 
 function normalizeTargetRefs(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
+    return Prisma.JsonNull;
   }
-  return value as Prisma.JsonValue;
+  return value as Prisma.InputJsonValue;
 }
 
 export async function GET(request: NextRequest) {

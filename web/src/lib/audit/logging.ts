@@ -7,8 +7,8 @@ export type AuditLogInput = {
   actionType: AuditActionType;
   targetType: AuditTargetType;
   targetId?: number | null;
-  beforeJson?: Prisma.JsonValue | null;
-  afterJson?: Prisma.JsonValue | null;
+  beforeJson?: Prisma.InputJsonValue | null;
+  afterJson?: Prisma.InputJsonValue | null;
   sourceThreadId?: number | null;
   sourceChatMessageId?: number | null;
   ipAddress?: string | null;
@@ -23,8 +23,8 @@ export async function recordAuditLog(input: AuditLogInput) {
       actionType: input.actionType,
       targetType: input.targetType,
       targetId: input.targetId ?? null,
-      beforeJson: input.beforeJson ?? null,
-      afterJson: input.afterJson ?? null,
+      beforeJson: input.beforeJson != null ? input.beforeJson : Prisma.JsonNull,
+      afterJson: input.afterJson != null ? input.afterJson : Prisma.JsonNull,
       sourceThreadId: input.sourceThreadId ?? null,
       sourceChatMessageId: input.sourceChatMessageId ?? null,
       ipAddress: input.ipAddress ?? null,

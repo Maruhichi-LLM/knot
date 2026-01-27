@@ -48,9 +48,9 @@ function normalizeLogIds(value: unknown): number[] | undefined {
 function normalizeTargetRefs(value: unknown) {
   if (value === undefined) return undefined;
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
+    return Prisma.JsonNull;
   }
-  return value as Prisma.JsonValue;
+  return value as Prisma.InputJsonValue;
 }
 
 export async function PATCH(
