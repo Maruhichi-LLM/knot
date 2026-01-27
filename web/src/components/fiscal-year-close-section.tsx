@@ -30,7 +30,7 @@ type FiscalYearClose = {
   balance: number;
   previousCarryover: number;
   nextCarryover: number;
-  statement: Statement | null;
+  statement: unknown;
   confirmedAt: string | null;
   confirmedBy: {
     id: number;
@@ -188,7 +188,7 @@ export function FiscalYearCloseSection({
   }
 
   const isConfirmed = fiscalYearClose?.status === "CONFIRMED";
-  const statement = fiscalYearClose?.statement;
+  const statement = fiscalYearClose?.statement as Statement | null | undefined;
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">

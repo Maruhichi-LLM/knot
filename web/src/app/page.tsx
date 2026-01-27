@@ -49,7 +49,7 @@ export default async function RootPage() {
     ...enabledExtensions,
   ]);
 
-  const moduleMap = new Map(MODULE_LINKS.map((module) => [module.key, module]));
+  const moduleMap = new Map<AllModuleKey, { key: AllModuleKey; label: string; href: string }>(MODULE_LINKS.map((module) => [module.key, module]));
   (Object.keys(EXTENSION_LINK_INFO) as ExtensionModuleKey[]).forEach(
     (key) => {
       moduleMap.set(key, {

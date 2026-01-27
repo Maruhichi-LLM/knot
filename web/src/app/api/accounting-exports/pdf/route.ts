@@ -138,6 +138,7 @@ export async function GET(request: Request) {
     accountTotals = new Map<string, { income: number; expense: number; name: string }>();
 
     for (const ledger of ledgers) {
+      if (!ledger.account) continue;
       const accountName = ledger.account.name;
       const accountType = ledger.account.type;
 

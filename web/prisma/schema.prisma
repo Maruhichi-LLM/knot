@@ -587,6 +587,7 @@ model ApprovalStep {
   conditions   Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  assignments  ApprovalAssignment[]
 }
 
 model ApprovalTemplate {
@@ -626,6 +627,7 @@ model ApprovalAssignment {
   applicationId Int
   application   ApprovalApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   stepId        Int
+  step          ApprovalStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
   stepOrder     Int
   approverRole  String
   assignedToId  Int?

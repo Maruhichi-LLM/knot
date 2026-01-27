@@ -8,10 +8,12 @@ import {
   CSRF_ERROR_MESSAGE,
 } from "@/lib/security";
 
+import { Prisma } from "@prisma/client";
+
 type StepInput = {
   approverRole: string;
   requireAll?: boolean;
-  conditions?: unknown;
+  conditions?: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
 };
 
 function requireStepsPayload(value: unknown): StepInput[] {
@@ -30,7 +32,9 @@ function requireStepsPayload(value: unknown): StepInput[] {
       approverRole: candidate.approverRole,
       requireAll:
         typeof candidate.requireAll === "boolean" ? candidate.requireAll : true,
-      conditions: candidate.conditions ?? null,
+      conditions: candidate.conditions
+        ? (candidate.conditions as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
     };
   });
   if (steps.length === 0) {

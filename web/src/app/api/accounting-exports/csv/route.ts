@@ -92,6 +92,7 @@ export async function GET(request: Request) {
   });
 
   for (const ledger of ledgers) {
+    if (!ledger.account) continue;
     rows.push([
       formatter.format(ledger.transactionDate),
       ledger.account.name,

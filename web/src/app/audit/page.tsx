@@ -150,8 +150,8 @@ async function recordAuditLog({
   action: string;
   targetType: string;
   targetId?: number;
-  previousValue?: Prisma.JsonValue;
-  newValue?: Prisma.JsonValue;
+  previousValue?: Prisma.InputJsonValue;
+  newValue?: Prisma.InputJsonValue;
 }) {
   await prisma.auditLog.create({
     data: {

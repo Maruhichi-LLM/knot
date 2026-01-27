@@ -6,6 +6,10 @@ import {
   assertSameOrigin,
   CSRF_ERROR_MESSAGE,
 } from "@/lib/security";
+import {
+  parseApprovalFormSchema,
+  validateApprovalFormData,
+} from "@/lib/approval-schema";
 
 export async function GET() {
   const session = await getSessionFromCookies();
@@ -20,10 +24,13 @@ export async function GET() {
   const applications = await prisma.approvalApplication.findMany({
     where: { groupId: session.groupId },
     include: {
-      template: { select: { id: true, name: true } },
+      template: { select: { id: true, name: true, fields: true } },
       applicant: { select: { id: true, displayName: true } },
       assignments: {
         orderBy: { stepOrder: "asc" },
+        include: {
+          assignedTo: { select: { id: true, displayName: true } },
+        },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -79,11 +86,7 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-  if (
-    !body.data ||
-    typeof body.data !== "object" ||
-    Array.isArray(body.data)
-  ) {
+  if (!body.data) {
     return NextResponse.json(
       { error: "申請データはオブジェクト形式で指定してください。" },
       { status: 400 }
@@ -111,28 +114,54 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  let schema;
+  try {
+    schema = parseApprovalFormSchema(template.fields);
+  } catch (err) {
+    return NextResponse.json(
+      {
+        error:
+          err instanceof Error
+            ? err.message
+            : "テンプレートの項目定義が不正です。",
+      },
+      { status: 400 }
+    );
+  }
+
+  const { errors, cleaned } = validateApprovalFormData(schema, body.data);
+  if (errors.length > 0) {
+    return NextResponse.json({ error: errors.join(" ") }, { status: 400 });
+  }
+
+  const firstStepOrder = template.route.steps[0].stepOrder;
+
   const application = await prisma.approvalApplication.create({
     data: {
       groupId: session.groupId,
       templateId: template.id,
       applicantId: session.memberId,
       title: body.title.trim(),
-      data: body.data,
+      data: cleaned,
       status: "PENDING",
-      currentStep: template.route.steps[0].stepOrder,
+      currentStep: firstStepOrder,
       assignments: {
         create: template.route.steps.map((step) => ({
           stepId: step.id,
           stepOrder: step.stepOrder,
           approverRole: step.approverRole,
+          status: step.stepOrder === firstStepOrder ? "IN_PROGRESS" : "WAITING",
         })),
       },
     },
     include: {
-      template: { select: { id: true, name: true } },
+      template: { select: { id: true, name: true, fields: true } },
       applicant: { select: { id: true, displayName: true } },
       assignments: {
         orderBy: { stepOrder: "asc" },
+        include: {
+          assignedTo: { select: { id: true, displayName: true } },
+        },
       },
     },
   });

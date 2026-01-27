@@ -7,6 +7,7 @@ import {
   assertSameOrigin,
   CSRF_ERROR_MESSAGE,
 } from "@/lib/security";
+import { parseApprovalFormSchema } from "@/lib/approval-schema";
 
 export async function GET() {
   const session = await getSessionFromCookies();
@@ -87,13 +88,12 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-  if (
-    !body.fields ||
-    typeof body.fields !== "object" ||
-    Array.isArray(body.fields)
-  ) {
+  let fieldsSchema;
+  try {
+    fieldsSchema = parseApprovalFormSchema(body.fields);
+  } catch (err) {
     return NextResponse.json(
-      { error: "fields はオブジェクト形式で指定してください。" },
+      { error: err instanceof Error ? err.message : "fields が不正です" },
       { status: 400 }
     );
   }
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       groupId: session.groupId,
       name: body.name.trim(),
       description: body.description?.trim() || null,
-      fields: body.fields,
+      fields: fieldsSchema,
       routeId: route.id,
     },
     include: {

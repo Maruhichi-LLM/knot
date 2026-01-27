@@ -92,7 +92,7 @@ export default async function RootLayout({
         <div className="bg-honeycomb" aria-hidden="true" />
         <div className="min-h-screen">
           <header className="border-b border-zinc-200 bg-white">
-            <div className="mx-auto flex w-full max-w-[90rem] items-center justify-between px-8 py-4">
+            <div className="edge-shell flex items-center justify-between gap-6 py-4">
               <Link href="/" className="text-lg font-semibold tracking-wide">
                 Knot
               </Link>
