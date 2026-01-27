@@ -62,6 +62,7 @@ export default async function RootPage() {
 
   const moduleOrder: Array<AllModuleKey> = [
     "chat",
+    "voting",
     "todo",
     "event",
     "event-budget",

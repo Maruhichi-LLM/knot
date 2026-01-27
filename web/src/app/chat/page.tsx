@@ -12,6 +12,7 @@ const SOURCE_TYPE_LABELS: Record<ThreadSourceType, string> = {
   EVENT: "Event",
   ACCOUNTING: "Accounting",
   DOCUMENT: "Document",
+  VOTING: "Voting",
   FREE: "FREE",
 };
 

@@ -20,6 +20,7 @@ const moduleLabelMap = new Map(
 
 const STORE_DISPLAY_ORDER: AllModuleKey[] = [
   "chat",
+  "voting",
   "todo",
   "event",
   "event-budget",

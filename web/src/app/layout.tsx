@@ -60,6 +60,7 @@ async function fetchLayoutContext() {
 
   const navOrder: ModuleKey[] = [
     "chat",
+    "voting",
     "todo",
     "event",
     "calendar",

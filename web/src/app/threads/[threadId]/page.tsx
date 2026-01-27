@@ -12,6 +12,7 @@ const SOURCE_TYPE_LABELS: Record<ThreadSourceType, string> = {
   EVENT: "Event",
   ACCOUNTING: "Accounting",
   DOCUMENT: "Document",
+  VOTING: "Voting",
   FREE: "FREE",
 };
 
@@ -329,6 +330,8 @@ function resolveSourceLink(sourceType: ThreadSourceType, sourceId: number | null
       return `/documents/${sourceId}`;
     case ThreadSourceType.EVENT:
       return `/events`;
+    case ThreadSourceType.VOTING:
+      return `/voting/${sourceId}`;
     default:
       return null;
   }

@@ -33,6 +33,7 @@ model Group {
   approvalTemplates    ApprovalTemplate[]
   approvalRoutes       ApprovalRoute[]
   approvalApplications ApprovalApplication[]
+  votings              Voting[]
 }
 
 model Member {
@@ -64,6 +65,7 @@ model Member {
   assignedAuditFindings   AuditFinding[]        @relation("AuditFindingAssignee")
   approvalApplications    ApprovalApplication[] @relation("ApplicationApplicant")
   approvalAssignments     ApprovalAssignment[]
+  votingsCreated          Voting[]             @relation("VotingCreatedBy")
 }
 
 model InviteCode {
@@ -364,10 +366,16 @@ enum ThreadSourceType {
   EVENT
   ACCOUNTING
   DOCUMENT
+  VOTING
   FREE
 }
 
 enum ThreadStatus {
+  OPEN
+  CLOSED
+}
+
+enum VotingStatus {
   OPEN
   CLOSED
 }
@@ -387,6 +395,7 @@ model ChatThread {
   ledgerEntries Ledger[]     @relation("LedgerThread")
   documents    Document[]    @relation("DocumentThread")
   auditLogs    AuditLog[]    @relation("AuditLogThread")
+  votings      Voting[]      @relation("VotingThread")
 
   @@index([groupId, status])
   @@index([groupId, sourceType, sourceId])
@@ -410,6 +419,51 @@ model ChatMessage {
 
   @@index([threadId, createdAt])
   @@index([authorId, createdAt])
+}
+
+model Voting {
+  id                Int           @id @default(autoincrement())
+  groupId           Int
+  group             Group         @relation(fields: [groupId], references: [id])
+  createdByMemberId Int
+  createdBy         Member        @relation("VotingCreatedBy", fields: [createdByMemberId], references: [id])
+  title             String
+  description       String?
+  options           Json
+  deadlineAt        DateTime?
+  status            VotingStatus  @default(OPEN)
+  totalVotes        Int           @default(0)
+  results           Json?
+  threadId          Int?
+  thread            ChatThread?   @relation("VotingThread", fields: [threadId], references: [id])
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  votes             VotingVote[]
+  comments          VotingComment[]
+
+  @@index([groupId, status])
+}
+
+model VotingVote {
+  id        Int      @id @default(autoincrement())
+  votingId  Int
+  voting    Voting   @relation(fields: [votingId], references: [id])
+  choiceId  String
+  voteHash  String
+  createdAt DateTime @default(now())
+
+  @@unique([votingId, voteHash])
+  @@index([votingId])
+}
+
+model VotingComment {
+  id        Int      @id @default(autoincrement())
+  votingId  Int
+  voting    Voting   @relation(fields: [votingId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([votingId, createdAt])
 }
 
 model TodoItem {

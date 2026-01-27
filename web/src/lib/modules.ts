@@ -8,6 +8,7 @@ export const MODULE_LINKS = [
   { key: "accounting", label: "Knot Accounting", href: "/accounting" },
   { key: "management", label: "Knot Management", href: "/management" },
   { key: "chat", label: "Knot Chat", href: "/chat" },
+  { key: "voting", label: "Knot Voting", href: "/voting" },
   { key: "todo", label: "Knot ToDo", href: "/todo" },
   { key: "document", label: "Knot Document", href: "/documents" },
   { key: "export", label: "Knot Export", href: "/export" },

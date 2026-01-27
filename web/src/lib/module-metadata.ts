@@ -32,6 +32,11 @@ export const MODULE_METADATA: Record<AllModuleKey, ModuleMetadata> = {
       "発言そのものを次の行動へつなげる意思決定ハブ。チャットからToDo・会計・議事録へ直接変換します。",
     badge: "意思決定 / ハブ",
   },
+  voting: {
+    description:
+      "匿名投票で団体の意思を集め、結果と意見をチャットに還元します。",
+    badge: "合意形成 / Voting",
+  },
   todo: {
     description:
       "会話から生まれたタスクを簡潔に管理。誰が・いつまでに・何をやるかを素早く共有します。",
