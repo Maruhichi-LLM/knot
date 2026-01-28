@@ -80,6 +80,16 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
   return (
     <div className="min-h-screen py-10">
       <div className="page-shell space-y-8">
+        <header className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <p className="text-sm uppercase tracking-wide text-sky-600">
+            Knot Document
+          </p>
+          <h1 className="text-3xl font-semibold text-zinc-900">Documents</h1>
+          <p className="mt-2 text-sm text-zinc-600">
+            団体の規程・議事録・会計資料など、確定した文書を安全に保管します。
+          </p>
+        </header>
+
         <section className="rounded-2xl border border-sky-200 bg-sky-50 p-6 text-sm text-sky-900 shadow-sm">
           Knot Document は団体の規定・規約・議事録・収支計算書など“確定版（最終版）”を保存する場所です。編集途中のファイルではなく、確定した文書を保存してください。
         </section>
@@ -90,7 +100,7 @@ export default async function DocumentsPage({ searchParams }: DocumentsPageProps
               <p className="text-xs uppercase tracking-wide text-zinc-500">
                 Knot Documents
               </p>
-              <h1 className="text-3xl font-semibold text-zinc-900">Documents</h1>
+              <h2 className="text-2xl font-semibold text-zinc-900">Documents</h2>
             </div>
             <form className="flex flex-wrap gap-3 text-sm" action="/documents" method="get">
               <select

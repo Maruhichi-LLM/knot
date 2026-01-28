@@ -102,6 +102,12 @@ export default function AuditClient({
         <p className="text-sm uppercase tracking-wide text-zinc-500">
           Knot Audit
         </p>
+        <h1 className="mt-1 text-3xl font-semibold text-zinc-900">
+          監査ログと指摘を一元管理
+        </h1>
+        <p className="mt-2 text-sm text-zinc-600">
+          監査ログ、内部統制のチェック結果、指摘の対応状況をまとめて確認できます。
+        </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <MetricCard label="直近30日の監査ログ" value={stats.recentLogs} tint="sky" />
           <MetricCard label="アクティブな統制ルール" value={stats.activeRules} tint="emerald" />

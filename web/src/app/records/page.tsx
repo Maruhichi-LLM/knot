@@ -75,6 +75,18 @@ export default async function RecordsPage({ searchParams }: RecordsPageProps) {
   return (
     <div className="min-h-screen py-10">
       <div className="page-shell space-y-8">
+        <header className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <p className="text-sm uppercase tracking-wide text-emerald-600">
+            Knot Records
+          </p>
+          <h1 className="text-3xl font-semibold text-zinc-900">
+            活動の記録を写真で残す
+          </h1>
+          <p className="mt-2 text-sm text-zinc-600">
+            行事や活動の写真を“記録”として残し、あとから検索・共有できるように整理します。
+          </p>
+        </header>
+
         <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-sm text-emerald-900 shadow-sm">
           Knot Records は、活動の瞬間を写真で残すための記録モジュールです。
           文書や報告書ではなく、現場の証跡を写真だけで保存します。

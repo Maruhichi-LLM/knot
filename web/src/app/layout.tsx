@@ -123,7 +123,15 @@ export default async function RootLayout({
                 )}
               </nav>
               {session ? <GlobalSearch /> : null}
-              <AuthButton initialSession={Boolean(session)} />
+              <div className="flex flex-col items-center gap-2">
+                <AuthButton initialSession={Boolean(session)} />
+                <Link
+                  href="/home"
+                  className="min-w-[120px] rounded-lg border border-zinc-200 px-4 py-1.5 text-xs font-semibold text-zinc-700 text-center transition hover:bg-zinc-50"
+                >
+                  団体ホーム
+                </Link>
+              </div>
             </div>
           </header>
           <main>{children}</main>

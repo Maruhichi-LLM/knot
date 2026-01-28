@@ -46,7 +46,7 @@ export function AuthButton({ initialSession }: Props) {
       <button
         type="button"
         onClick={() => router.push("/login")}
-        className="min-w-[120px] rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 text-center transition hover:bg-zinc-50"
+        className="min-w-[120px] rounded-lg border border-zinc-300 px-4 py-1.5 text-xs font-semibold text-zinc-700 text-center transition hover:bg-zinc-50"
       >
         ログイン
       </button>
@@ -58,7 +58,7 @@ export function AuthButton({ initialSession }: Props) {
       type="button"
       onClick={handleLogout}
       disabled={isLoading}
-      className="min-w-[120px] rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 text-center transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+      className="min-w-[120px] rounded-lg border border-zinc-300 px-4 py-1.5 text-xs font-semibold text-zinc-700 text-center transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {isLoading ? "ログアウト中..." : "ログアウト"}
     </button>
