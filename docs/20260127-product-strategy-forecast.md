@@ -80,7 +80,7 @@
 
 ### 2.2 拡張/ガバナンス系モジュール
 
-#### Knot Approval (`/approval`) — **3.8 / 5**
+#### Knot Workflow (`/approval`) — **3.8 / 5**
 - 役割: 汎用の申請・承認フローを構成。
 - 技術: `ApprovalRoute`, `ApprovalStep`, `ApprovalTemplate`, `ApprovalApplication`, `ApprovalAssignment`。
 - 特徴: JSONスキーマ型フォーム定義、段階承認、ロールベース承認。

@@ -74,7 +74,7 @@ export default async function ApprovalTemplatesPage() {
       <div className="page-shell space-y-8">
         <header className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-zinc-500">
-            Knot Approval
+            Knot Workflow
           </p>
           <h1 className="text-3xl font-semibold text-zinc-900">
             申請テンプレート管理
