@@ -1,277 +1,392 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
-import { redirect } from "next/navigation";
-import { LogoutButton } from "@/components/logout-button";
 import { ROLE_ADMIN } from "@/lib/roles";
-import { ensureModuleEnabled } from "@/lib/modules";
+import { getFiscalYear } from "@/lib/fiscal-year";
+import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
+import {
+  MyTodayCard,
+  type TodoPreview,
+  type ApprovalPreview,
+  type EventPreview,
+} from "@/components/dashboard/my-today-card";
+import {
+  GroupNowCard,
+  type GroupEventSummary,
+  type AccountingStatusSummary,
+  type AnnouncementPreview,
+} from "@/components/dashboard/group-now-card";
+import { AdminAlertsCard, type AdminAlertItem } from "@/components/dashboard/admin-alerts-card";
 
-const WEEK_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
-
-const monthFormatter = new Intl.DateTimeFormat("ja-JP", {
-  year: "numeric",
-  month: "long",
+const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
+  month: "numeric",
+  day: "numeric",
+  weekday: "short",
 });
 
-const timeFormatter = new Intl.DateTimeFormat("ja-JP", {
-  hour: "2-digit",
-  minute: "2-digit",
+const dateTimeFormatter = new Intl.DateTimeFormat("ja-JP", {
+  dateStyle: "medium",
+  timeStyle: "short",
 });
 
-async function fetchMember(memberId: number) {
-  return prisma.member.findUnique({
-    where: { id: memberId },
-    include: { group: true },
-  });
-}
-
-async function fetchMonthlyEvents(groupId: number) {
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  startOfMonth.setHours(0, 0, 0, 0);
-  const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  startOfNextMonth.setHours(0, 0, 0, 0);
-
-  return prisma.event.findMany({
-    where: {
-      groupId,
-      startsAt: {
-        gte: startOfMonth,
-        lt: startOfNextMonth,
-      },
-    },
-    orderBy: { startsAt: "asc" },
-    select: {
-      id: true,
-      title: true,
-      startsAt: true,
-      attendances: {
-        select: {
-          status: true,
-        },
-      },
-    },
-  });
-}
-
-type MonthlyEvent = Awaited<ReturnType<typeof fetchMonthlyEvents>>[number];
-
-type CalendarDay = {
-  date: Date;
-  key: string;
-  isCurrentMonth: boolean;
-  isToday: boolean;
-  events: MonthlyEvent[];
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: "管理者",
+  ACCOUNTANT: "会計担当",
+  AUDITOR: "監査役",
+  MEMBER: "メンバー",
 };
 
-function formatDayKey(date: Date) {
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+function startOfDay(date: Date) {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
 }
 
-function buildCalendar(reference: Date, events: MonthlyEvent[]): CalendarDay[] {
-  const startOfMonth = new Date(
-    reference.getFullYear(),
-    reference.getMonth(),
-    1
-  );
-  const endOfMonth = new Date(
-    reference.getFullYear(),
-    reference.getMonth() + 1,
-    0
-  );
-  const calendarStart = new Date(startOfMonth);
-  calendarStart.setDate(startOfMonth.getDate() - startOfMonth.getDay());
-  const calendarEnd = new Date(endOfMonth);
-  calendarEnd.setDate(endOfMonth.getDate() + (6 - endOfMonth.getDay()));
-
-  const eventsByDay = events.reduce<Record<string, MonthlyEvent[]>>(
-    (acc, event) => {
-      const key = formatDayKey(event.startsAt);
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(event);
-      return acc;
-    },
-    {}
-  );
-
-  const todayKey = formatDayKey(new Date());
-  const days: CalendarDay[] = [];
-
-  for (
-    let day = new Date(calendarStart);
-    day <= calendarEnd;
-    day.setDate(day.getDate() + 1)
-  ) {
-    const key = formatDayKey(day);
-    days.push({
-      date: new Date(day),
-      key,
-      isCurrentMonth: day.getMonth() === reference.getMonth(),
-      isToday: key === todayKey,
-      events: eventsByDay[key] ?? [],
-    });
+function getDueMeta(dueDate: Date | null, now: Date) {
+  if (!dueDate) {
+    return { label: "期限未設定", tone: "none" as const };
   }
+  const todayStart = startOfDay(now);
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(todayStart.getDate() + 1);
+  const dayAfterTomorrowStart = new Date(todayStart);
+  dayAfterTomorrowStart.setDate(todayStart.getDate() + 2);
 
-  return days;
+  if (dueDate < todayStart) {
+    return {
+      label: `期限切れ ${dateFormatter.format(dueDate)}`,
+      tone: "overdue" as const,
+    };
+  }
+  if (dueDate < tomorrowStart) {
+    return { label: "今日", tone: "today" as const };
+  }
+  if (dueDate < dayAfterTomorrowStart) {
+    return { label: "明日", tone: "tomorrow" as const };
+  }
+  return { label: dateFormatter.format(dueDate), tone: "upcoming" as const };
 }
 
-function summarizeAttendance(attendances: MonthlyEvent["attendances"]) {
-  return attendances.reduce(
-    (acc, attendance) => {
-      acc[attendance.status] += 1;
-      return acc;
-    },
-    { YES: 0, NO: 0, MAYBE: 0 }
-  );
+function resolveTodoSourceLabel(todo: {
+  sourceVotingId: number | null;
+  sourceChatMessageId: number | null;
+  sourceThreadId: number | null;
+}) {
+  if (todo.sourceVotingId) return "投票";
+  if (todo.sourceChatMessageId || todo.sourceThreadId) return "Chat";
+  return "ToDo";
 }
 
-function formatDateParam(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+function resolveAttendanceMeta(status?: "YES" | "NO" | "MAYBE" | null) {
+  if (!status) {
+    return { label: "未回答", tone: "unanswered" as const };
+  }
+  if (status === "YES") return { label: "参加", tone: "yes" as const };
+  if (status === "NO") return { label: "不参加", tone: "no" as const };
+  return { label: "未定", tone: "maybe" as const };
 }
 
-export default async function HomePage() {
+export default async function DashboardPage() {
   const session = await getSessionFromCookies();
   if (!session) {
     redirect("/join");
   }
-  await ensureModuleEnabled(session.groupId, "calendar");
 
-  const member = await fetchMember(session.memberId);
+  const member = await prisma.member.findUnique({
+    where: { id: session.memberId },
+    include: { group: true },
+  });
   if (!member || !member.group) {
     redirect("/join");
   }
 
-  const events = await fetchMonthlyEvents(member.groupId);
   const now = new Date();
-  const days = buildCalendar(now, events);
-  const canManageEvents = member.role === ROLE_ADMIN;
+  const isAdmin = member.role === ROLE_ADMIN;
+  const fiscalYear = getFiscalYear(now, member.group.fiscalYearStartMonth ?? 4);
+  const staleSince = new Date(now);
+  staleSince.setDate(now.getDate() - 7);
+
+  const [
+    todosRaw,
+    approvalsCount,
+    myEventsRaw,
+    nextEventRaw,
+    memberCount,
+    accountingSetting,
+    fiscalYearClose,
+    announcementRaw,
+    approvalRouteCount,
+    approvalTemplateCount,
+    staleApprovalCount,
+  ] = await Promise.all([
+    prisma.todoItem.findMany({
+      where: {
+        groupId: session.groupId,
+        status: { not: "DONE" },
+        OR: [
+          { assignedMemberId: session.memberId },
+          { createdByMemberId: session.memberId },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      select: {
+        id: true,
+        title: true,
+        dueDate: true,
+        createdAt: true,
+        sourceVotingId: true,
+        sourceChatMessageId: true,
+        sourceThreadId: true,
+      },
+    }),
+    prisma.approvalAssignment.count({
+      where: {
+        assignedToId: session.memberId,
+        status: "IN_PROGRESS",
+        application: { groupId: session.groupId },
+      },
+    }),
+    prisma.event.findMany({
+      where: {
+        groupId: session.groupId,
+        startsAt: { gte: now },
+      },
+      orderBy: { startsAt: "asc" },
+      take: 4,
+      include: {
+        attendances: {
+          where: { memberId: session.memberId },
+          select: { status: true },
+        },
+      },
+    }),
+    prisma.event.findFirst({
+      where: {
+        groupId: session.groupId,
+        startsAt: { gte: now },
+      },
+      orderBy: { startsAt: "asc" },
+      include: {
+        attendances: {
+          select: { status: true },
+        },
+      },
+    }),
+    prisma.member.count({ where: { groupId: session.groupId } }),
+    prisma.accountingSetting.findUnique({
+      where: { groupId: session.groupId },
+      select: { approvalFlow: true },
+    }),
+    prisma.fiscalYearClose.findUnique({
+      where: {
+        groupId_fiscalYear: {
+          groupId: session.groupId,
+          fiscalYear,
+        },
+      },
+      select: { status: true },
+    }),
+    prisma.document.findFirst({
+      where: { groupId: session.groupId, category: "OTHER" },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, title: true, updatedAt: true },
+    }),
+    isAdmin
+      ? prisma.approvalRoute.count({ where: { groupId: session.groupId } })
+      : Promise.resolve(0),
+    isAdmin
+      ? prisma.approvalTemplate.count({
+          where: { groupId: session.groupId, isActive: true },
+        })
+      : Promise.resolve(0),
+    isAdmin
+      ? prisma.approvalAssignment.count({
+          where: {
+            status: "IN_PROGRESS",
+            updatedAt: { lt: staleSince },
+            application: { groupId: session.groupId },
+          },
+        })
+      : Promise.resolve(0),
+  ]);
+
+  const todosSorted = [...todosRaw].sort((a, b) => {
+    const aDue = a.dueDate ? a.dueDate.getTime() : Number.POSITIVE_INFINITY;
+    const bDue = b.dueDate ? b.dueDate.getTime() : Number.POSITIVE_INFINITY;
+    if (aDue !== bDue) {
+      return aDue - bDue;
+    }
+    return b.createdAt.getTime() - a.createdAt.getTime();
+  });
+  const todoPreviews: TodoPreview[] = todosSorted.slice(0, 5).map((todo) => {
+    const dueMeta = getDueMeta(todo.dueDate, now);
+    return {
+      id: todo.id,
+      title: todo.title,
+      dueLabel: dueMeta.label,
+      dueTone: dueMeta.tone,
+      sourceLabel: resolveTodoSourceLabel(todo),
+      href: `/todo?focus=${todo.id}`,
+    };
+  });
+  const todosHasMore = todosSorted.length > 5;
+
+  const approvals: ApprovalPreview = {
+    count: approvalsCount,
+  };
+
+  const myEventPreviews: EventPreview[] = myEventsRaw
+    .slice(0, 3)
+    .map((event) => {
+      const attendanceStatus = event.attendances[0]?.status ?? null;
+      const attendance = resolveAttendanceMeta(attendanceStatus);
+      return {
+        id: event.id,
+        title: event.title,
+        dateLabel: dateTimeFormatter.format(event.startsAt),
+        attendanceLabel: attendance.label,
+        attendanceTone: attendance.tone,
+        href: `/events/${event.id}`,
+      };
+    });
+  const eventsHasMore = myEventsRaw.length > 3;
+
+  let nextEvent: GroupEventSummary | null = null;
+  if (nextEventRaw) {
+    const yesCount = nextEventRaw.attendances.filter(
+      (attendance) => attendance.status === "YES"
+    ).length;
+    const respondedCount = nextEventRaw.attendances.length;
+    const unansweredCount = Math.max(memberCount - respondedCount, 0);
+    nextEvent = {
+      id: nextEventRaw.id,
+      title: nextEventRaw.title,
+      dateLabel: dateTimeFormatter.format(nextEventRaw.startsAt),
+      attendanceYes: yesCount,
+      attendanceUnanswered: unansweredCount,
+      attendanceTotal: memberCount,
+      href: `/events/${nextEventRaw.id}`,
+    };
+  }
+
+  const accountingStatus: AccountingStatusSummary = (() => {
+    if (!accountingSetting) {
+      return { label: "未設定", tone: "bad", icon: "🔴" };
+    }
+    if (fiscalYearClose?.status === "CONFIRMED") {
+      return { label: "確定済", tone: "good", icon: "🟢" };
+    }
+    return {
+      label: "下書きあり",
+      tone: "warn",
+      icon: "🟡",
+      detail: `${fiscalYear}年度`,
+    };
+  })();
+
+  const announcement: AnnouncementPreview | null = announcementRaw
+    ? {
+        id: announcementRaw.id,
+        title: announcementRaw.title,
+        updatedLabel: `${dateFormatter.format(
+          announcementRaw.updatedAt
+        )} 更新`,
+        href: `/documents/${announcementRaw.id}`,
+      }
+    : null;
+
+  const adminAlerts: AdminAlertItem[] = [];
+  if (isAdmin) {
+    if (!accountingSetting) {
+      adminAlerts.push({
+        id: "accounting-setting",
+        title: "会計設定が未完了です",
+        description: "会計年度と基本設定を確認してください。",
+        href: "/accounting?section=accounting-settings",
+      });
+    } else if (!accountingSetting.approvalFlow) {
+      adminAlerts.push({
+        id: "accounting-approval",
+        title: "会計の承認フローが未設定です",
+        description: "承認フローを登録すると承認待ちが整理されます。",
+        href: "/accounting?section=accounting-settings",
+      });
+    }
+    if (approvalRouteCount === 0) {
+      adminAlerts.push({
+        id: "approval-route",
+        title: "承認ルートが未設定です",
+        description: "申請を回す前にルートを作成してください。",
+        href: "/approval/routes",
+      });
+    }
+    if (approvalTemplateCount === 0) {
+      adminAlerts.push({
+        id: "approval-template",
+        title: "申請テンプレートが未設定です",
+        description: "テンプレートを作成すると申請が回覧できます。",
+        href: "/approval/templates",
+      });
+    }
+    if (memberCount <= 1) {
+      adminAlerts.push({
+        id: "members",
+        title: "メンバーがまだ招待されていません",
+        description: "招待コードを発行してメンバーを追加してください。",
+        href: "/management",
+      });
+    }
+    if (staleApprovalCount > 0) {
+      adminAlerts.push({
+        id: "approval-stale",
+        title: "承認が滞留しています",
+        description: `${staleApprovalCount} 件が1週間以上止まっています。`,
+        href: "/approval",
+      });
+    }
+    if (nextEvent && memberCount > 0) {
+      const unansweredRate = nextEvent.attendanceUnanswered / memberCount;
+      if (unansweredRate >= 0.5) {
+        adminAlerts.push({
+          id: "event-unanswered",
+          title: "イベントの未回答が多いです",
+          description: `未回答が ${nextEvent.attendanceUnanswered} 件あります。`,
+          href: "/events",
+        });
+      }
+    }
+  }
+
+  const roleLabel = ROLE_LABELS[member.role] ?? member.role;
 
   return (
-    <div className="min-h-screen py-8">
-      <div className="page-shell flex flex-col gap-8">
-        <header className="rounded-3xl bg-gradient-to-r from-sky-600 to-cyan-500 p-6 text-white shadow-lg">
-          <div className="flex flex-wrap items-center justify-between gap-6">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-white/70">
-                {member.group.fiscalYearStartMonth}月はじまり
-              </p>
-              <h1 className="mt-1 text-3xl font-semibold">{member.group.name}</h1>
-              <p className="mt-2 text-sm text-white/80">
-                ログイン中: {member.displayName}（{member.role}）
-              </p>
-            </div>
-            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-              <LogoutButton />
-            </div>
-          </div>
-        </header>
-
-        <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-sm uppercase tracking-wide text-sky-600">
-                Knot Calendar
-              </p>
-              <h2 className="text-3xl font-semibold text-zinc-900">
-                {monthFormatter.format(now)}
-              </h2>
-              <p className="mt-1 text-sm text-zinc-500">
-                ここで行事と参加状況がひとつにつながります。
-              </p>
-            </div>
-            <Link
-              href="/events"
-              className="text-sm font-medium text-sky-600 hover:text-sky-500"
-            >
-              イベント一覧を見る →
-            </Link>
-          </div>
-
-          <div className="mt-6 grid grid-cols-7 gap-2 text-center text-xs font-semibold uppercase tracking-wide text-zinc-400">
-            {WEEK_LABELS.map((label) => (
-              <div key={label}>{label}</div>
-            ))}
-          </div>
-
-          <div className="mt-2 grid grid-cols-7 gap-3">
-            {days.map((day) => (
-              <div
-                key={day.key}
-                className={`group relative min-h-[120px] rounded-2xl border px-3 pr-9 py-2 ${
-                  day.isCurrentMonth ? "bg-white" : "bg-zinc-50 text-zinc-400"
-                }`}
-              >
-                {canManageEvents ? (
-                  <Link
-                    href={`/events?date=${formatDateParam(day.date)}#create-event`}
-                    className="absolute right-2 top-2 hidden h-7 w-7 items-center justify-center rounded-full border border-sky-200 bg-white text-lg font-bold text-sky-600 shadow-sm transition hover:bg-sky-600 hover:text-white group-focus-within:flex group-hover:flex"
-                    title="この日にイベントを追加"
-                  >
-                    +
-                  </Link>
-                ) : null}
-                <div className="flex items-center justify-between">
-                  <p
-                    className={`text-sm font-semibold ${
-                      day.isCurrentMonth ? "text-zinc-800" : "text-zinc-400"
-                    }`}
-                  >
-                    {day.date.getDate()}
-                  </p>
-                  {day.isToday ? (
-                    <span className="rounded-full bg-sky-500 px-2 py-0.5 text-[10px] font-semibold text-white">
-                      今日
-                    </span>
-                  ) : null}
-                </div>
-                <div className="mt-2 space-y-2">
-                  {day.events.length === 0 ? (
-                    <p className="text-[11px] text-zinc-400">予定なし</p>
-                  ) : (
-                    <>
-                      {day.events.slice(0, 2).map((event) => {
-                        const summary = summarizeAttendance(event.attendances);
-                        return (
-                          <Link
-                            key={event.id}
-                            href={`/events#event-${event.id}`}
-                            className="block rounded-xl border border-sky-100 bg-sky-50 p-2 ring-sky-200 transition hover:ring-2"
-                          >
-                            <p className="text-xs font-semibold text-sky-900">
-                              {event.title}
-                            </p>
-                            <p className="text-[11px] text-sky-800">
-                              {timeFormatter.format(event.startsAt)}・参加
-                              {summary.YES}／未定{summary.MAYBE}
-                            </p>
-                          </Link>
-                        );
-                      })}
-                      {day.events.length > 2 ? (
-                        <p className="text-[11px] text-sky-600">
-                          ほか {day.events.length - 2} 件
-                        </p>
-                      ) : null}
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-dashed border-zinc-200 bg-white/60 p-6 text-sm text-zinc-600">
-          <p className="font-medium text-zinc-900">これから実装予定の機能</p>
-          <ul className="mt-3 list-disc space-y-1 pl-5">
-            <li>イベント出欠の詳細管理とエクスポート強化</li>
-            <li>会計の承認フローと証憑アップロード</li>
-            <li>監査ログ・団体設定まわりの機能</li>
-          </ul>
-        </section>
+    <DashboardLayout
+      groupName={member.group.name}
+      memberName={member.displayName}
+      memberRoleLabel={roleLabel}
+    >
+      <div className="space-y-6 lg:grid lg:grid-cols-12 lg:gap-6 lg:space-y-0">
+        <div className="lg:col-span-7 space-y-6">
+          <MyTodayCard
+            todos={todoPreviews}
+            todosHasMore={todosHasMore}
+            approvals={approvals}
+            events={myEventPreviews}
+            eventsHasMore={eventsHasMore}
+          />
+        </div>
+        <div className="lg:col-span-5 space-y-6">
+          <GroupNowCard
+            nextEvent={nextEvent}
+            accounting={accountingStatus}
+            announcement={announcement}
+          />
+          {isAdmin && adminAlerts.length > 0 ? (
+            <AdminAlertsCard alerts={adminAlerts} />
+          ) : null}
+        </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

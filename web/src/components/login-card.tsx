@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { emitAuthChange } from "@/lib/auth-events";
+import { KNOT_DASHBOARD_PATH } from "@/lib/routes";
 
 type Props = {
   heading?: string;
@@ -15,7 +16,7 @@ type Props = {
 export function LoginCard({
   heading = "ログイン",
   showRegisterHint = true,
-  onSuccessHref = "/",
+  onSuccessHref = KNOT_DASHBOARD_PATH,
   compact = false,
 }: Props) {
   const router = useRouter();
