@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 import { ROLE_ADMIN } from "@/lib/roles";
+import { upsertSearchIndex } from "@/lib/search-index";
 import {
   assertSameOrigin,
   CSRF_ERROR_MESSAGE,
@@ -124,6 +125,17 @@ export async function POST(request: Request) {
   }
 
   revalidatePath("/events");
+
+  await upsertSearchIndex({
+    groupId: admin.groupId,
+    entityType: "EVENT",
+    entityId: event.id,
+    title: event.title,
+    content: [event.description, event.location].filter(Boolean).join(" "),
+    urlPath: `/events/${event.id}`,
+    eventId: event.id,
+    occurredAt: event.startsAt,
+  });
 
   return NextResponse.json({ success: true, event });
 }

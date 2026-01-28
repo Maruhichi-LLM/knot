@@ -34,6 +34,7 @@ model Group {
   approvalRoutes       ApprovalRoute[]
   approvalApplications ApprovalApplication[]
   votings              Voting[]
+  searchIndexes        SearchIndex[]
 }
 
 model Member {
@@ -499,6 +500,33 @@ model TodoItem {
 
   @@index([sourceThreadId])
   @@index([sourceChatMessageId])
+}
+
+model SearchIndex {
+  id         Int      @id @default(autoincrement())
+  groupId    Int
+  group      Group    @relation(fields: [groupId], references: [id])
+  entityType String
+  entityId   Int
+  title      String?
+  content    String?
+  urlPath    String
+  threadId   Int?
+  eventId    Int?
+  fiscalYear Int?
+  occurredAt DateTime?
+  searchVector Unsupported("tsvector")? @map("search_vector") @default(dbgenerated())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([entityType, entityId, groupId])
+  @@index([groupId])
+  @@index([entityType])
+  @@index([occurredAt])
+  @@index([threadId])
+  @@index([eventId])
+  @@index([fiscalYear])
+  @@index([searchVector], type: Gin, map: "SearchIndex_search_vector_gin")
 }
 
 enum TodoStatus {

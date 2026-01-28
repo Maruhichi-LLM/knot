@@ -30,6 +30,7 @@ async function main() {
   await prisma.todoItem.deleteMany();
   await prisma.chatMessage.deleteMany();
   await prisma.chatThread.deleteMany();
+  await prisma.searchIndex.deleteMany();
   await prisma.eventBudgetImport.deleteMany();
   await prisma.eventTransaction.deleteMany();
   await prisma.eventBudget.deleteMany();
@@ -191,6 +192,12 @@ async function main() {
   );
 
   const currentYear = new Date().getFullYear();
+
+  function getFiscalYear(date, startMonth = 4) {
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    return month >= startMonth ? year : year - 1;
+  }
 
   await prisma.budget.createMany({
     data: [
@@ -416,6 +423,103 @@ async function main() {
       },
     ],
   });
+
+  const [ledgers, events, threads, messages] = await Promise.all([
+    prisma.ledger.findMany({
+      where: { groupId: group.id },
+      select: {
+        id: true,
+        title: true,
+        notes: true,
+        transactionDate: true,
+        sourceThreadId: true,
+        createdAt: true,
+      },
+    }),
+    prisma.event.findMany({
+      where: { groupId: group.id },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        location: true,
+        startsAt: true,
+      },
+    }),
+    prisma.chatThread.findMany({
+      where: { groupId: group.id },
+      select: { id: true, title: true, createdAt: true },
+    }),
+    prisma.chatMessage.findMany({
+      where: { groupId: group.id },
+      select: { id: true, body: true, createdAt: true, threadId: true },
+    }),
+  ]);
+
+  const threadMap = new Map(
+    threads.map((thread) => [thread.id, thread])
+  );
+
+  const searchEntries = [];
+  for (const ledger of ledgers) {
+    searchEntries.push({
+      groupId: group.id,
+      entityType: "LEDGER",
+      entityId: ledger.id,
+      title: ledger.title,
+      content: ledger.notes,
+      urlPath: `/accounting?focus=${ledger.id}`,
+      threadId: ledger.sourceThreadId,
+      fiscalYear: getFiscalYear(
+        ledger.transactionDate,
+        group.fiscalYearStartMonth
+      ),
+      occurredAt: ledger.transactionDate,
+    });
+  }
+
+  for (const eventItem of events) {
+    searchEntries.push({
+      groupId: group.id,
+      entityType: "EVENT",
+      entityId: eventItem.id,
+      title: eventItem.title,
+      content: [eventItem.description, eventItem.location]
+        .filter(Boolean)
+        .join(" "),
+      urlPath: `/events/${eventItem.id}`,
+      eventId: eventItem.id,
+      occurredAt: eventItem.startsAt,
+    });
+  }
+
+  for (const thread of threads) {
+    searchEntries.push({
+      groupId: group.id,
+      entityType: "CHAT_THREAD",
+      entityId: thread.id,
+      title: thread.title,
+      urlPath: `/threads/${thread.id}`,
+      threadId: thread.id,
+      occurredAt: thread.createdAt,
+    });
+  }
+
+  for (const message of messages) {
+    const thread = threadMap.get(message.threadId);
+    searchEntries.push({
+      groupId: group.id,
+      entityType: "CHAT_MESSAGE",
+      entityId: message.id,
+      title: thread?.title ?? "Chat",
+      content: message.body,
+      urlPath: `/threads/${message.threadId}`,
+      threadId: message.threadId,
+      occurredAt: message.createdAt,
+    });
+  }
+
+  await prisma.searchIndex.createMany({ data: searchEntries });
 
   console.log("Seed completed:", {
     group,

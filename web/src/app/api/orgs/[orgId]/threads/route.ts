@@ -4,6 +4,7 @@ import { ThreadSourceType, ThreadStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { ensureFreeThread, findExistingThreadForSource } from "@/lib/chat";
+import { upsertSearchIndex } from "@/lib/search-index";
 import {
   assertSameOrigin,
   CSRF_ERROR_MESSAGE,
@@ -183,6 +184,17 @@ export async function POST(
 
   if (createdThread) {
     revalidatePath("/chat");
+    await upsertSearchIndex({
+      groupId: orgId,
+      entityType: "CHAT_THREAD",
+      entityId: thread.id,
+      title: thread.title,
+      urlPath: `/threads/${thread.id}`,
+      threadId: thread.id,
+      eventId:
+        thread.sourceType === ThreadSourceType.EVENT ? thread.sourceId ?? null : null,
+      occurredAt: thread.createdAt,
+    });
   }
 
   return NextResponse.json({ thread });
@@ -252,17 +264,41 @@ async function linkSourceRecordToThread(
         where: { id: sourceId, groupId },
         data: { sourceThreadId: threadId },
       });
+      await prisma.searchIndex.updateMany({
+        where: {
+          groupId,
+          entityType: "TODO",
+          entityId: sourceId,
+        },
+        data: { threadId },
+      });
       break;
     case ThreadSourceType.ACCOUNTING:
       await prisma.ledger.updateMany({
         where: { id: sourceId, groupId },
         data: { sourceThreadId: threadId },
       });
+      await prisma.searchIndex.updateMany({
+        where: {
+          groupId,
+          entityType: "LEDGER",
+          entityId: sourceId,
+        },
+        data: { threadId },
+      });
       break;
     case ThreadSourceType.DOCUMENT:
       await prisma.document.updateMany({
         where: { id: sourceId, groupId },
         data: { sourceThreadId: threadId },
+      });
+      await prisma.searchIndex.updateMany({
+        where: {
+          groupId,
+          entityType: "DOCUMENT",
+          entityId: sourceId,
+        },
+        data: { threadId },
       });
       break;
     case ThreadSourceType.VOTING:

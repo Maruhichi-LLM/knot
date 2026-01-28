@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { ROLE_ADMIN } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
+import { getFiscalYear, resolveFiscalYearStartMonth } from "@/lib/fiscal-year";
+import { upsertSearchIndex } from "@/lib/search-index";
 import {
   assertSameOrigin,
   CSRF_ERROR_MESSAGE,
@@ -193,6 +195,19 @@ export async function POST(
   });
 
   revalidatePath("/accounting");
+
+  const startMonth = await resolveFiscalYearStartMonth(session.groupId);
+  await upsertSearchIndex({
+    groupId: session.groupId,
+    entityType: "LEDGER",
+    entityId: updated.id,
+    title: updated.title,
+    content: updated.notes,
+    urlPath: `/accounting?focus=${updated.id}`,
+    threadId: updated.sourceThreadId ?? null,
+    fiscalYear: getFiscalYear(updated.transactionDate, startMonth),
+    occurredAt: updated.transactionDate,
+  });
 
   return NextResponse.json({ success: true, ledger: updated });
 }

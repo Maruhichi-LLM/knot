@@ -5,6 +5,7 @@ import { isPlatformAdminEmail } from "@/lib/admin";
 import { DocumentCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { saveUploadedDocumentFile } from "@/lib/document-storage";
+import { upsertSearchIndex } from "@/lib/search-index";
 import {
   assertSameOrigin,
   CSRF_ERROR_MESSAGE,
@@ -236,6 +237,18 @@ export async function POST(request: Request) {
     });
     revalidatePath("/documents");
     revalidatePath(`/documents/${document.id}`);
+    await upsertSearchIndex({
+      groupId: document.groupId,
+      entityType: "DOCUMENT",
+      entityId: document.id,
+      title: document.title,
+      content: null,
+      urlPath: `/documents/${document.id}`,
+      threadId: document.sourceThreadId,
+      eventId: document.eventId,
+      fiscalYear: document.fiscalYear,
+      occurredAt: document.createdAt,
+    });
     return NextResponse.json({ success: true, documentId: document.id });
   } catch (error) {
     return NextResponse.json(

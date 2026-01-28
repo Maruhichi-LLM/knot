@@ -91,6 +91,15 @@ Knot Audit は「監査ログ」「内部統制チェック」「指摘管理」
 4. 指摘を作成し、ステータスを `OPEN → RESOLVED` に変更できるか
 5. `/api/audit/logs` を curl 等で叩き、権限の無いメンバーでは 401 になるか
 
+## Knot Search (Cmd+K)
+
+### 手動確認の目安
+1. ヘッダーの検索ボタン、または Cmd+K / Ctrl+K で検索パレットが開くか
+2. Chat / ToDo / Event / Accounting / Document を作成し、キーワード検索で結果が出るか
+3. フィルタ（種類・期間・fiscalYear・eventId・threadId）を指定して絞り込めるか
+4. 結果をクリックすると該当画面へ遷移できるか
+5. 別団体のデータが混入しないか（管理者以外は groupId を指定しても無視される）
+
 ## Getting Started
 
 First, run the development server:

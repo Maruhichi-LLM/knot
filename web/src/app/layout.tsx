@@ -10,6 +10,7 @@ import {
 import { getSessionFromCookies } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { AuthButton } from "@/components/auth-button";
+import { GlobalSearch } from "@/components/global-search";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -93,11 +94,11 @@ export default async function RootLayout({
         <div className="bg-honeycomb" aria-hidden="true" />
         <div className="min-h-screen">
           <header className="border-b border-zinc-200 bg-white">
-            <div className="edge-shell flex items-center justify-between gap-6 py-4">
+            <div className="edge-shell flex items-center gap-4 py-4">
               <Link href="/" className="text-lg font-semibold tracking-wide">
                 Knot
               </Link>
-              <nav className="flex flex-wrap justify-end gap-3 text-sm font-medium text-zinc-600">
+              <nav className="flex flex-1 flex-wrap justify-end gap-3 text-sm font-medium text-zinc-600">
                 {navItems.map((item) =>
                   item.enabled ? (
                     <Link
@@ -119,6 +120,7 @@ export default async function RootLayout({
                   )
                 )}
               </nav>
+              {session ? <GlobalSearch /> : null}
               <AuthButton initialSession={Boolean(session)} />
             </div>
           </header>

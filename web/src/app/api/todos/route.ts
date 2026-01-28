@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { TodoStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { upsertSearchIndex } from "@/lib/search-index";
 import {
   assertSameOrigin,
   CSRF_ERROR_MESSAGE,
@@ -94,6 +95,17 @@ export async function POST(request: Request) {
   });
 
   revalidatePath("/todo");
+
+  await upsertSearchIndex({
+    groupId: session.groupId,
+    entityType: "TODO",
+    entityId: newTodo.id,
+    title: newTodo.title,
+    content: newTodo.body,
+    urlPath: `/todo?focus=${newTodo.id}`,
+    threadId: newTodo.sourceThreadId,
+    occurredAt: newTodo.dueDate ?? newTodo.createdAt,
+  });
 
   return NextResponse.json({ success: true, todo: newTodo });
 }

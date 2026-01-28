@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 import { AuditActionType, AuditTargetType, Prisma } from "@prisma/client";
+import { deleteSearchIndex } from "@/lib/search-index";
 import {
   assertSameOrigin,
   CSRF_ERROR_MESSAGE,
@@ -232,6 +233,12 @@ export async function DELETE(
   });
 
   revalidatePath("/accounting");
+
+  await deleteSearchIndex({
+    groupId: session.groupId,
+    entityType: "LEDGER",
+    entityId: ledger.id,
+  });
 
   return NextResponse.json({ success: true });
 }

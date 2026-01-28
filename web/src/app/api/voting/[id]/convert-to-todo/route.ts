@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { ensureModuleEnabled } from "@/lib/modules";
 import { ROLE_ADMIN } from "@/lib/roles";
+import { upsertSearchIndex } from "@/lib/search-index";
 import {
   assertSameOrigin,
   CSRF_ERROR_MESSAGE,
@@ -177,6 +178,17 @@ export async function POST(
   if (threadId) {
     revalidatePath(`/threads/${threadId}`);
   }
+
+  await upsertSearchIndex({
+    groupId: session.groupId,
+    entityType: "TODO",
+    entityId: todo.id,
+    title: todo.title,
+    content: todo.body,
+    urlPath: `/todo?focus=${todo.id}`,
+    threadId: todo.sourceThreadId,
+    occurredAt: todo.dueDate ?? todo.createdAt,
+  });
 
   return NextResponse.json({
     status: "created" as const,

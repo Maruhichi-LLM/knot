@@ -9,6 +9,7 @@ import {
   getDocumentStorageBaseDir,
   saveUploadedDocumentFile,
 } from "@/lib/document-storage";
+import { upsertSearchIndex, deleteSearchIndex } from "@/lib/search-index";
 import {
   assertSameOrigin,
   CSRF_ERROR_MESSAGE,
@@ -228,6 +229,18 @@ export async function POST(
     });
     revalidatePath("/documents");
     revalidatePath(`/documents/${document.id}`);
+    await upsertSearchIndex({
+      groupId: document.groupId,
+      entityType: "DOCUMENT",
+      entityId: document.id,
+      title: document.title,
+      content: null,
+      urlPath: `/documents/${document.id}`,
+      threadId: document.sourceThreadId,
+      eventId: document.eventId,
+      fiscalYear: document.fiscalYear,
+      occurredAt: new Date(),
+    });
     return NextResponse.json({ success: true, versionId: version.id });
   } catch (error) {
     return NextResponse.json(
@@ -339,6 +352,11 @@ export async function DELETE(
     });
 
     revalidatePath("/documents");
+    await deleteSearchIndex({
+      groupId: document.groupId,
+      entityType: "DOCUMENT",
+      entityId: document.id,
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json(

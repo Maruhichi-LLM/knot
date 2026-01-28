@@ -6,6 +6,8 @@ import {
 } from "@prisma/client";
 import { prisma } from "./prisma";
 import { saveDocumentBytes } from "./document-storage";
+import { getFiscalYear } from "@/lib/fiscal-year";
+import { upsertSearchIndex } from "@/lib/search-index";
 
 export async function loadChatMessageForConversion(
   messageId: number,
@@ -15,7 +17,7 @@ export async function loadChatMessageForConversion(
     where: { id: messageId, groupId },
     include: {
       group: { select: { id: true, fiscalYearStartMonth: true } },
-      thread: { select: { id: true, title: true } },
+      thread: { select: { id: true, title: true, sourceType: true, sourceId: true } },
     },
   });
 }
@@ -25,12 +27,6 @@ function summarize(text: string, length = 60) {
     return text;
   }
   return `${text.slice(0, length - 1)}…`;
-}
-
-function resolveFiscalYear(date: Date, startMonth: number) {
-  const month = date.getMonth() + 1;
-  const year = date.getFullYear();
-  return month >= startMonth ? year : year - 1;
 }
 
 type ConversionMessage = NonNullable<
@@ -66,6 +62,18 @@ export async function convertMessageToTodo(
   });
   revalidatePath("/todo");
   revalidatePath(`/threads/${message.threadId}`);
+  await upsertSearchIndex({
+    groupId: message.groupId,
+    entityType: "TODO",
+    entityId: todo.id,
+    title: todo.title,
+    content: todo.body,
+    urlPath: `/todo?focus=${todo.id}`,
+    threadId: todo.sourceThreadId,
+    eventId:
+      message.thread.sourceType === "EVENT" ? message.thread.sourceId ?? null : null,
+    occurredAt: todo.dueDate ?? todo.createdAt,
+  });
   return {
     target: "todo" as const,
     status: "created" as const,
@@ -111,6 +119,23 @@ export async function convertMessageToLedgerDraft(
   });
   revalidatePath("/accounting");
   revalidatePath(`/threads/${message.threadId}`);
+  const fiscalYear = getFiscalYear(
+    ledger.transactionDate,
+    message.group.fiscalYearStartMonth || 4
+  );
+  await upsertSearchIndex({
+    groupId: message.groupId,
+    entityType: "LEDGER",
+    entityId: ledger.id,
+    title: ledger.title,
+    content: ledger.notes,
+    urlPath: `/accounting?focus=${ledger.id}`,
+    threadId: ledger.sourceThreadId,
+    eventId:
+      message.thread.sourceType === "EVENT" ? message.thread.sourceId ?? null : null,
+    fiscalYear,
+    occurredAt: ledger.transactionDate,
+  });
   return {
     target: "accounting" as const,
     status: "created" as const,
@@ -137,7 +162,7 @@ export async function convertMessageToDocument(
     };
   }
   const now = new Date();
-  const fiscalYear = resolveFiscalYear(
+  const fiscalYear = getFiscalYear(
     now,
     message.group.fiscalYearStartMonth || 4
   );
@@ -199,6 +224,19 @@ export async function convertMessageToDocument(
   revalidatePath("/documents");
   revalidatePath(`/documents/${document.id}`);
   revalidatePath(`/threads/${message.threadId}`);
+  await upsertSearchIndex({
+    groupId: message.groupId,
+    entityType: "DOCUMENT",
+    entityId: document.id,
+    title: document.title,
+    content: message.body,
+    urlPath: `/documents/${document.id}`,
+    threadId: document.sourceThreadId,
+    eventId:
+      message.thread.sourceType === "EVENT" ? message.thread.sourceId ?? null : null,
+    fiscalYear: document.fiscalYear,
+    occurredAt: document.createdAt,
+  });
   return {
     target: "document" as const,
     status: "created" as const,

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { ensureModuleEnabled } from "@/lib/modules";
 import { ROLE_ADMIN } from "@/lib/roles";
+import { upsertSearchIndex } from "@/lib/search-index";
 import {
   assertSameOrigin,
   CSRF_ERROR_MESSAGE,
@@ -159,7 +160,7 @@ export async function POST(
     },
   });
 
-  await prisma.chatMessage.create({
+  const message = await prisma.chatMessage.create({
     data: {
       threadId: thread.id,
       groupId: session.groupId,
@@ -180,6 +181,27 @@ export async function POST(
   revalidatePath("/chat");
   revalidatePath("/voting");
   revalidatePath(`/voting/${votingId}`);
+
+  await upsertSearchIndex({
+    groupId: session.groupId,
+    entityType: "CHAT_THREAD",
+    entityId: thread.id,
+    title: thread.title,
+    urlPath: `/threads/${thread.id}`,
+    threadId: thread.id,
+    occurredAt: thread.createdAt,
+  });
+
+  await upsertSearchIndex({
+    groupId: session.groupId,
+    entityType: "CHAT_MESSAGE",
+    entityId: message.id,
+    title: thread.title,
+    content: message.body,
+    urlPath: `/threads/${thread.id}`,
+    threadId: thread.id,
+    occurredAt: message.createdAt,
+  });
 
   return NextResponse.json({ thread });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
+import { upsertSearchIndex } from "@/lib/search-index";
 import {
   assertSameOrigin,
   CSRF_ERROR_MESSAGE,
@@ -10,6 +11,7 @@ import {
   getRateLimitRule,
   buildRateLimitKey,
 } from "@/lib/security";
+import { ThreadSourceType } from "@prisma/client";
 
 function parseThreadId(raw: string) {
   const id = Number(raw);
@@ -80,7 +82,7 @@ export async function POST(
   }
   const thread = await prisma.chatThread.findFirst({
     where: { id: threadId, groupId: session.groupId },
-    select: { id: true },
+    select: { id: true, title: true, sourceType: true, sourceId: true },
   });
   if (!thread) {
     return NextResponse.json({ error: "Thread not found" }, { status: 404 });
@@ -104,6 +106,19 @@ export async function POST(
 
   revalidatePath(`/threads/${thread.id}`);
   revalidatePath("/chat");
+
+  await upsertSearchIndex({
+    groupId: session.groupId,
+    entityType: "CHAT_MESSAGE",
+    entityId: message.id,
+    title: thread.title || "Chat",
+    content: message.body,
+    urlPath: `/threads/${thread.id}`,
+    threadId: thread.id,
+    eventId:
+      thread.sourceType === ThreadSourceType.EVENT ? thread.sourceId ?? null : null,
+    occurredAt: message.createdAt,
+  });
 
   return NextResponse.json({ messageId: message.id });
 }
