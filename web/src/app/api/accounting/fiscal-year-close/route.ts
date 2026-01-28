@@ -11,28 +11,17 @@ import {
   getRateLimitRule,
   buildRateLimitKey,
 } from "@/lib/security";
+import {
+  assertFiscalYearCloseEditable,
+  computeFiscalYearPeriod,
+  summarizeLedgersForStatement,
+} from "@/lib/accounting/fiscalYearClose";
 
 type CreateOrUpdateRequest = {
   fiscalYear: number;
   startDate: string;
   endDate: string;
   action?: "create" | "recalculate" | "confirm";
-};
-
-type StatementItem = {
-  accountId: number;
-  accountName: string;
-  amount: number;
-};
-
-type Statement = {
-  revenue: StatementItem[];
-  expense: StatementItem[];
-  totalRevenue: number;
-  totalExpense: number;
-  balance: number;
-  previousCarryover: number;
-  nextCarryover: number;
 };
 
 // GET: 指定年度の締め情報を取得
@@ -85,84 +74,6 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ fiscalYearClose });
-}
-
-// 収支計算書を自動生成
-async function generateStatement(
-  groupId: number,
-  fiscalYear: number,
-  startDate: Date,
-  endDate: Date,
-  previousCarryover: number
-): Promise<Statement> {
-  // 期間内の全てのLedger（承認済みのみ）を取得
-  const ledgers = await prisma.ledger.findMany({
-    where: {
-      groupId,
-      status: "APPROVED",
-      transactionDate: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-    include: {
-      account: true,
-    },
-  });
-
-  // 勘定科目ごとに集計
-  const revenueMap = new Map<number, { accountName: string; amount: number }>();
-  const expenseMap = new Map<number, { accountName: string; amount: number }>();
-
-  for (const ledger of ledgers) {
-    if (!ledger.account) continue;
-
-    const accountId = ledger.account.id;
-    const accountName = ledger.account.name;
-    const amount = ledger.amount;
-
-    if (ledger.account.type === "INCOME") {
-      const current = revenueMap.get(accountId) ?? { accountName, amount: 0 };
-      current.amount += amount;
-      revenueMap.set(accountId, current);
-    } else if (ledger.account.type === "EXPENSE") {
-      const current = expenseMap.get(accountId) ?? { accountName, amount: 0 };
-      current.amount += amount;
-      expenseMap.set(accountId, current);
-    }
-  }
-
-  // StatementItem配列に変換
-  const revenue: StatementItem[] = Array.from(revenueMap.entries()).map(
-    ([accountId, { accountName, amount }]) => ({
-      accountId,
-      accountName,
-      amount,
-    })
-  );
-
-  const expense: StatementItem[] = Array.from(expenseMap.entries()).map(
-    ([accountId, { accountName, amount }]) => ({
-      accountId,
-      accountName,
-      amount,
-    })
-  );
-
-  const totalRevenue = revenue.reduce((sum, item) => sum + item.amount, 0);
-  const totalExpense = expense.reduce((sum, item) => sum + item.amount, 0);
-  const balance = totalRevenue - totalExpense;
-  const nextCarryover = previousCarryover + balance;
-
-  return {
-    revenue,
-    expense,
-    totalRevenue,
-    totalExpense,
-    balance,
-    previousCarryover,
-    nextCarryover,
-  };
 }
 
 // POST: 作成/更新/確定
@@ -263,22 +174,35 @@ export async function POST(request: Request) {
     },
   });
 
-  // 確定済みの場合は更新不可
-  if (existing && existing.status === "CONFIRMED" && action !== "confirm") {
-    return NextResponse.json(
-      { error: "確定済みの年度は再計算できません。" },
-      { status: 400 }
-    );
+  const editCheck = assertFiscalYearCloseEditable(existing, action);
+  if (!editCheck.ok) {
+    return NextResponse.json({ error: editCheck.error }, { status: 400 });
   }
 
-  // 収支計算書を生成
-  const statement = await generateStatement(
-    session.groupId,
-    body.fiscalYear,
+  const period = computeFiscalYearPeriod({
+    fiscalYear: body.fiscalYear,
     startDate,
     endDate,
-    previousCarryover
-  );
+  });
+
+  const ledgers = await prisma.ledger.findMany({
+    where: {
+      groupId: session.groupId,
+      transactionDate: {
+        gte: period.startDate,
+        lte: period.endDate,
+      },
+    },
+    include: {
+      account: true,
+    },
+  });
+
+  const statement = summarizeLedgersForStatement({
+    ledgers,
+    previousCarryover,
+    period,
+  });
 
   if (action === "confirm") {
     // 確定処理
