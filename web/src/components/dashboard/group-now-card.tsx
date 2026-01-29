@@ -28,7 +28,7 @@ export type AnnouncementPreview = {
 type Props = {
   nextEvent: GroupEventSummary | null;
   accounting: AccountingStatusSummary;
-  announcements: AnnouncementPreview[];
+  announcements?: AnnouncementPreview[];
   canPostAnnouncement?: boolean;
 };
 
@@ -41,7 +41,7 @@ const accountingToneStyles = {
 export function GroupNowCard({
   nextEvent,
   accounting,
-  announcements,
+  announcements = [],
   canPostAnnouncement = false,
 }: Props) {
   return (
@@ -146,10 +146,10 @@ export function AccountingStatusSummaryView({
 }
 
 export function PinnedAnnouncementPreview({
-  announcements,
+  announcements = [],
   canPostAnnouncement,
 }: {
-  announcements: AnnouncementPreview[];
+  announcements?: AnnouncementPreview[];
   canPostAnnouncement: boolean;
 }) {
   return (
