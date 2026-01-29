@@ -89,6 +89,31 @@ const SAMPLE_ROUTES: SampleRoute[] = [
       { approverRole: "AUDITOR", requireAll: false },
     ],
   },
+  {
+    label: "施設利用（簡易申請）",
+    description: "メンバーのみで完結する軽い申請。",
+    steps: [{ approverRole: "MEMBER", requireAll: false }],
+  },
+  {
+    label: "外部活動許可（管理者確認）",
+    description: "まず管理者、必要に応じて監査役が確認。",
+    steps: [
+      { approverRole: "ADMIN", requireAll: false },
+      { approverRole: "AUDITOR", requireAll: false },
+    ],
+  },
+  {
+    label: "役職変更（1万円以上の手当）",
+    description: "会計担当が金額確認し、管理者が最終承認。",
+    steps: [
+      {
+        approverRole: "ACCOUNTANT",
+        requireAll: false,
+        conditionBuilder: { minAmount: "10000", maxAmount: "" },
+      },
+      { approverRole: "ADMIN", requireAll: true },
+    ],
+  },
 ];
 
 export function RouteCreateForm() {
