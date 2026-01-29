@@ -36,6 +36,45 @@ export type ApprovalFormValue = string | number | boolean | string[] | null;
 
 export type ApprovalFormValues = Record<string, ApprovalFormValue>;
 
+export const DEFAULT_APPROVAL_FORM_SCHEMA: ApprovalFormSchema = {
+  items: [
+    {
+      id: "purpose",
+      label: "目的",
+      type: "text",
+      required: true,
+      placeholder: "例: 備品購入の目的",
+    },
+    {
+      id: "amount",
+      label: "金額",
+      type: "number",
+      required: false,
+      placeholder: "例: 10000",
+      min: 0,
+    },
+    {
+      id: "attachment",
+      label: "添付資料",
+      type: "file",
+      required: false,
+    },
+    {
+      id: "neededBy",
+      label: "希望日",
+      type: "date",
+      required: false,
+    },
+    {
+      id: "details",
+      label: "詳細",
+      type: "textarea",
+      required: false,
+      placeholder: "補足や背景など",
+    },
+  ],
+};
+
 const ALLOWED_TYPES: ApprovalFieldType[] = [
   "text",
   "textarea",

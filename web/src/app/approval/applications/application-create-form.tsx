@@ -1,46 +1,46 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ApprovalFormSchema,
   ApprovalFieldDefinition,
   ApprovalFormValues,
   buildInitialValues,
+  DEFAULT_APPROVAL_FORM_SCHEMA,
 } from "@/lib/approval-schema";
 
-export type TemplateOption = {
+export type RouteOption = {
   id: number;
   name: string;
-  description: string | null;
-  schema: ApprovalFormSchema;
 };
 
 type Props = {
-  templates: TemplateOption[];
+  routes: RouteOption[];
 };
 
-export function ApplicationCreateForm({ templates }: Props) {
+export function ApplicationCreateForm({ routes }: Props) {
   const router = useRouter();
-  const [selectedTemplateId, setSelectedTemplateId] = useState<number>(
-    templates[0]?.id ?? 0
+  const [selectedRouteId, setSelectedRouteId] = useState<number>(
+    routes[0]?.id ?? 0
   );
   const [title, setTitle] = useState("");
   const [values, setValues] = useState<ApprovalFormValues>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const selectedTemplate = useMemo(
-    () => templates.find((template) => template.id === selectedTemplateId),
-    [templates, selectedTemplateId]
+  const selectedRoute = useMemo(
+    () => routes.find((route) => route.id === selectedRouteId),
+    [routes, selectedRouteId]
   );
 
   useEffect(() => {
-    if (selectedTemplate) {
-      setValues(buildInitialValues(selectedTemplate.schema));
-      setTitle(`${selectedTemplate.name} ${new Date().toLocaleDateString("ja-JP")}`);
+    if (selectedRoute) {
+      setValues(buildInitialValues(DEFAULT_APPROVAL_FORM_SCHEMA));
+      setTitle(
+        `${selectedRoute.name} ${new Date().toLocaleDateString("ja-JP")}`
+      );
     }
-  }, [selectedTemplate]);
+  }, [selectedRoute]);
 
   const updateValue = (fieldId: string, value: string | number | boolean | string[] | null) => {
     setValues((prev) => ({
@@ -51,8 +51,8 @@ export function ApplicationCreateForm({ templates }: Props) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedTemplate) {
-      setError("テンプレートを選択してください。");
+    if (!selectedRoute) {
+      setError("承認ルートを選択してください。");
       return;
     }
     setSubmitting(true);
@@ -62,7 +62,7 @@ export function ApplicationCreateForm({ templates }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          templateId: selectedTemplate.id,
+          routeId: selectedRoute.id,
           title: title.trim(),
           data: values,
         }),
@@ -71,8 +71,10 @@ export function ApplicationCreateForm({ templates }: Props) {
         const data = await response.json().catch(() => null);
         throw new Error(data?.error ?? "申請の作成に失敗しました。");
       }
-      setValues(buildInitialValues(selectedTemplate.schema));
-      setTitle(`${selectedTemplate.name} ${new Date().toLocaleDateString("ja-JP")}`);
+      setValues(buildInitialValues(DEFAULT_APPROVAL_FORM_SCHEMA));
+      setTitle(
+        `${selectedRoute.name} ${new Date().toLocaleDateString("ja-JP")}`
+      );
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "申請の作成に失敗しました。");
@@ -81,10 +83,10 @@ export function ApplicationCreateForm({ templates }: Props) {
     }
   }
 
-  if (templates.length === 0) {
+  if (routes.length === 0) {
     return (
       <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-        利用可能なテンプレートがありません。管理者にテンプレートの作成を依頼してください。
+        利用可能な承認ルートがありません。管理者に承認ルートの作成を依頼してください。
       </p>
     );
   }
@@ -96,15 +98,15 @@ export function ApplicationCreateForm({ templates }: Props) {
     >
       <div className="grid gap-4 md:grid-cols-2">
         <label className="text-sm text-zinc-600">
-          申請テンプレート
+          承認ルート
           <select
-            value={selectedTemplateId}
-            onChange={(event) => setSelectedTemplateId(Number(event.target.value))}
+            value={selectedRouteId}
+            onChange={(event) => setSelectedRouteId(Number(event.target.value))}
             className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
           >
-            {templates.map((template) => (
-              <option key={template.id} value={template.id}>
-                {template.name}
+            {routes.map((route) => (
+              <option key={route.id} value={route.id}>
+                {route.name}
               </option>
             ))}
           </select>
@@ -121,14 +123,8 @@ export function ApplicationCreateForm({ templates }: Props) {
         </label>
       </div>
 
-      {selectedTemplate?.schema.instructions ? (
-        <p className="rounded-xl border border-sky-100 bg-sky-50 p-3 text-sm text-sky-800">
-          {selectedTemplate.schema.instructions}
-        </p>
-      ) : null}
-
       <div className="space-y-4">
-        {selectedTemplate?.schema.items.map((field) => (
+        {DEFAULT_APPROVAL_FORM_SCHEMA.items.map((field) => (
           <FieldRenderer
             key={field.id}
             field={field}
@@ -174,6 +170,8 @@ function FieldRenderer({
   ) : null;
 
   switch (field.type) {
+    case "file":
+      return <FileUploadField field={field} value={value} onChange={onChange} />;
     case "textarea":
       return (
         <label className="block text-sm text-zinc-600">
@@ -294,4 +292,77 @@ function FieldRenderer({
         </label>
       );
   }
+}
+
+function FileUploadField({
+  field,
+  value,
+  onChange,
+}: {
+  field: ApprovalFieldDefinition;
+  value: string | number | boolean | string[] | null;
+  onChange: (value: string | number | boolean | string[] | null) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/receipts", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "アップロードに失敗しました。");
+      }
+      const data = (await res.json()) as { url: string };
+      onChange(data.url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "アップロードに失敗しました。");
+    } finally {
+      event.target.value = "";
+      setUploading(false);
+    }
+  }
+
+  return (
+    <label className="block text-sm text-zinc-600">
+      {field.label}
+      <div className="mt-1 rounded-lg border border-zinc-300 bg-transparent px-3 py-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <input type="file" onChange={handleFileChange} className="text-sm" />
+          {uploading ? (
+            <span className="text-xs text-zinc-500">アップロード中...</span>
+          ) : null}
+          {typeof value === "string" && value.length > 0 ? (
+            <a
+              href={value}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-sky-600 underline"
+            >
+              添付ファイルを開く
+            </a>
+          ) : null}
+          {typeof value === "string" && value.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => onChange(null)}
+              className="text-xs text-rose-600 hover:underline"
+            >
+              解除
+            </button>
+          ) : null}
+        </div>
+      </div>
+      {error ? <p className="mt-1 text-xs text-rose-600">{error}</p> : null}
+    </label>
+  );
 }

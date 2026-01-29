@@ -49,7 +49,7 @@ export function DashboardLayout({
                 href="/"
                 className="rounded-full border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-sky-200 hover:text-sky-700"
               >
-                アプリ一覧
+                モジュール一覧
               </Link>
             </div>
           </div>

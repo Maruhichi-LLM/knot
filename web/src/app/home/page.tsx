@@ -116,7 +116,6 @@ export default async function DashboardPage() {
     fiscalYearClose,
     announcementRaw,
     approvalRouteCount,
-    approvalTemplateCount,
     staleApprovalCount,
   ] = await Promise.all([
     prisma.todoItem.findMany({
@@ -142,7 +141,7 @@ export default async function DashboardPage() {
     }),
     prisma.approvalAssignment.count({
       where: {
-        assignedToId: session.memberId,
+        approverRole: member.role,
         status: "IN_PROGRESS",
         application: { groupId: session.groupId },
       },
@@ -194,11 +193,6 @@ export default async function DashboardPage() {
     }),
     isAdmin
       ? prisma.approvalRoute.count({ where: { groupId: session.groupId } })
-      : Promise.resolve(0),
-    isAdmin
-      ? prisma.approvalTemplate.count({
-          where: { groupId: session.groupId, isActive: true },
-        })
       : Promise.resolve(0),
     isAdmin
       ? prisma.approvalAssignment.count({
@@ -319,14 +313,6 @@ export default async function DashboardPage() {
         title: "承認ルートが未設定です",
         description: "申請を回す前にルートを作成してください。",
         href: "/approval/routes",
-      });
-    }
-    if (approvalTemplateCount === 0) {
-      adminAlerts.push({
-        id: "approval-template",
-        title: "申請テンプレートが未設定です",
-        description: "テンプレートを作成すると申請が回覧できます。",
-        href: "/approval/templates",
       });
     }
     if (memberCount <= 1) {

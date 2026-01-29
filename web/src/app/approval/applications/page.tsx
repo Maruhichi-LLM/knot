@@ -2,9 +2,9 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 import { ensureModuleEnabled } from "@/lib/modules";
-import { ApplicationCreateForm, TemplateOption } from "./application-create-form";
+import { ApplicationCreateForm, RouteOption } from "./application-create-form";
 import { ApplicationActionButtons } from "./application-action-buttons";
-import { parseApprovalFormSchema } from "@/lib/approval-schema";
+import { DEFAULT_APPROVAL_FORM_SCHEMA } from "@/lib/approval-schema";
 
 const STATUS_LABELS = {
   DRAFT: "下書き",
@@ -43,21 +43,28 @@ export default async function ApprovalApplicationsPage() {
   }
   await ensureModuleEnabled(session.groupId, "approval");
 
-  const [member, templates, applications] = await Promise.all([
+  const [member, routes, applications] = await Promise.all([
     prisma.member.findUnique({
       where: { id: session.memberId },
       select: { id: true, role: true, displayName: true },
     }),
-    prisma.approvalTemplate.findMany({
-      where: { groupId: session.groupId, isActive: true },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, description: true, fields: true },
+    prisma.approvalRoute.findMany({
+      where: { groupId: session.groupId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true },
     }),
     prisma.approvalApplication.findMany({
       where: { groupId: session.groupId },
       orderBy: { createdAt: "desc" },
       include: {
-        template: { select: { id: true, name: true, fields: true } },
+        template: {
+          select: {
+            id: true,
+            name: true,
+            fields: true,
+            route: { select: { id: true, name: true } },
+          },
+        },
         applicant: { select: { id: true, displayName: true } },
         assignments: {
           orderBy: { stepOrder: "asc" },
@@ -69,21 +76,10 @@ export default async function ApprovalApplicationsPage() {
     }),
   ]);
 
-  const templateOptions: TemplateOption[] = templates
-    .map((template) => {
-      try {
-        const schema = parseApprovalFormSchema(template.fields);
-        return {
-          id: template.id,
-          name: template.name,
-          description: template.description ?? null,
-          schema,
-        };
-      } catch {
-        return null;
-      }
-    })
-    .filter((item): item is TemplateOption => item !== null);
+  const routeOptions: RouteOption[] = routes.map((route) => ({
+    id: route.id,
+    name: route.name,
+  }));
 
   return (
     <div className="min-h-screen bg-transparent py-10">
@@ -106,7 +102,7 @@ export default async function ApprovalApplicationsPage() {
             テンプレートを選択して必要事項を入力すると、承認ルートに沿って自動的に回覧されます。
           </p>
           <div className="mt-4">
-            <ApplicationCreateForm templates={templateOptions} />
+            <ApplicationCreateForm routes={routeOptions} />
           </div>
         </section>
 
@@ -124,12 +120,7 @@ export default async function ApprovalApplicationsPage() {
           ) : (
             <div className="space-y-5">
               {applications.map((application) => {
-                let schema;
-                try {
-                  schema = parseApprovalFormSchema(application.template.fields);
-                } catch {
-                  schema = null;
-                }
+                const schema = DEFAULT_APPROVAL_FORM_SCHEMA;
                 const canAct =
                   application.status === "PENDING" &&
                   application.currentStep &&
@@ -161,8 +152,8 @@ export default async function ApprovalApplicationsPage() {
                           {application.title}
                         </h3>
                         <p className="text-sm text-zinc-600">
-                          テンプレート: {application.template.name} / 申請者:{" "}
-                          {application.applicant.displayName}
+                          承認ルート: {application.template.route?.name ?? "未設定"} /
+                          申請者: {application.applicant.displayName}
                         </p>
                       </div>
                       <div className="text-right">
@@ -185,26 +176,44 @@ export default async function ApprovalApplicationsPage() {
                       </div>
                     </div>
 
-                    {schema ? (
-                      <div className="mt-4 grid gap-4 rounded-2xl border border-zinc-100 bg-zinc-50 p-4 md:grid-cols-2">
-                        {schema.items.map((field) => (
-                          <div key={field.id}>
-                            <p className="text-xs uppercase tracking-wide text-zinc-400">
-                              {field.label}
-                            </p>
+                    <div className="mt-4 grid gap-4 rounded-2xl border border-zinc-100 bg-zinc-50 p-4 md:grid-cols-2">
+                      {schema.items.map((field) => (
+                        <div key={field.id}>
+                          <p className="text-xs uppercase tracking-wide text-zinc-400">
+                            {field.label}
+                          </p>
+                          {field.type === "file" ? (
+                            typeof (application.data as Record<string, unknown>)[
+                              field.id
+                            ] === "string" &&
+                            ((application.data as Record<string, unknown>)[
+                              field.id
+                            ] as string).length > 0 ? (
+                              <a
+                                href={
+                                  (application.data as Record<string, unknown>)[
+                                    field.id
+                                  ] as string
+                                }
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-sm text-sky-600 underline"
+                              >
+                                添付ファイルを開く
+                              </a>
+                            ) : (
+                              <p className="mt-1 text-sm text-zinc-400">—</p>
+                            )
+                          ) : (
                             <p className="mt-1 text-sm text-zinc-800">
                               {formatValue(
                                 (application.data as Record<string, unknown>)[field.id]
                               )}
                             </p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                        このテンプレートのフィールド定義を解析できませんでした。
-                      </p>
-                    )}
+                          )}
+                        </div>
+                      ))}
+                    </div>
 
                     <div className="mt-6 grid gap-4 md:grid-cols-2">
                       <div className="space-y-3">

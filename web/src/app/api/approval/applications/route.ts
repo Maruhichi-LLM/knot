@@ -4,8 +4,8 @@ import { getSessionFromCookies } from "@/lib/session";
 import { ensureModuleEnabled, isModuleEnabled } from "@/lib/modules";
 import { assertWriteRequestSecurity } from "@/lib/security";
 import {
-  parseApprovalFormSchema,
   validateApprovalFormData,
+  DEFAULT_APPROVAL_FORM_SCHEMA,
 } from "@/lib/approval-schema";
 import { captureApiException, setApiSentryContext } from "@/lib/sentry";
 
@@ -22,7 +22,14 @@ export async function GET() {
   const applications = await prisma.approvalApplication.findMany({
     where: { groupId: session.groupId },
     include: {
-      template: { select: { id: true, name: true, fields: true } },
+      template: {
+        select: {
+          id: true,
+          name: true,
+          fields: true,
+          route: { select: { id: true, name: true } },
+        },
+      },
       applicant: { select: { id: true, displayName: true } },
       assignments: {
         orderBy: { stepOrder: "asc" },
@@ -55,7 +62,7 @@ export async function POST(request: NextRequest) {
   await ensureModuleEnabled(session.groupId, "approval");
 
   let body: {
-    templateId?: number;
+    routeId?: number;
     title?: string;
     data?: unknown;
   } = {};
@@ -65,12 +72,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
-  if (
-    typeof body.templateId !== "number" ||
-    !Number.isInteger(body.templateId)
-  ) {
+  if (typeof body.routeId !== "number" || !Number.isInteger(body.routeId)) {
     return NextResponse.json(
-      { error: "テンプレートを指定してください。" },
+      { error: "承認ルートを指定してください。" },
       { status: 400 }
     );
   }
@@ -87,48 +91,52 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const template = await prisma.approvalTemplate.findFirst({
-    where: { id: body.templateId, groupId: session.groupId, isActive: true },
-    include: {
-      route: {
-        include: { steps: { orderBy: { stepOrder: "asc" } } },
-      },
-    },
+  const route = await prisma.approvalRoute.findFirst({
+    where: { id: body.routeId, groupId: session.groupId },
+    include: { steps: { orderBy: { stepOrder: "asc" } } },
   });
-  if (!template || !template.route) {
+  if (!route) {
     return NextResponse.json(
-      { error: "指定されたテンプレートが見つかりません。" },
+      { error: "指定された承認ルートが見つかりません。" },
       { status: 400 }
     );
   }
-  if (template.route.steps.length === 0) {
+  if (route.steps.length === 0) {
     return NextResponse.json(
       { error: "承認ステップが設定されていません。" },
       { status: 400 }
     );
   }
 
-  let schema;
-  try {
-    schema = parseApprovalFormSchema(template.fields);
-  } catch (err) {
-    return NextResponse.json(
-      {
-        error:
-          err instanceof Error
-            ? err.message
-            : "テンプレートの項目定義が不正です。",
-      },
-      { status: 400 }
-    );
-  }
-
-  const { errors, cleaned } = validateApprovalFormData(schema, body.data);
+  const { errors, cleaned } = validateApprovalFormData(
+    DEFAULT_APPROVAL_FORM_SCHEMA,
+    body.data
+  );
   if (errors.length > 0) {
     return NextResponse.json({ error: errors.join(" ") }, { status: 400 });
   }
 
-  const firstStepOrder = template.route.steps[0].stepOrder;
+  const template =
+    (await prisma.approvalTemplate.findFirst({
+      where: {
+        groupId: session.groupId,
+        routeId: route.id,
+        name: "共通申請",
+        isActive: true,
+      },
+    })) ??
+    (await prisma.approvalTemplate.create({
+      data: {
+        groupId: session.groupId,
+        name: "共通申請",
+        description: "申請テンプレート（共通フォーム）",
+        fields: DEFAULT_APPROVAL_FORM_SCHEMA,
+        routeId: route.id,
+        isActive: true,
+      },
+    }));
+
+  const firstStepOrder = route.steps[0].stepOrder;
 
   const routePath = new URL(request.url).pathname;
   const sentryContext = {
@@ -138,7 +146,7 @@ export async function POST(request: NextRequest) {
     method: request.method,
     groupId: session.groupId,
     memberId: session.memberId,
-    entity: { templateId: template.id },
+    entity: { routeId: route.id, templateId: template.id },
   } as const;
   setApiSentryContext(sentryContext);
 
@@ -153,7 +161,7 @@ export async function POST(request: NextRequest) {
         status: "PENDING",
         currentStep: firstStepOrder,
         assignments: {
-          create: template.route.steps.map((step) => ({
+          create: route.steps.map((step) => ({
             stepId: step.id,
             stepOrder: step.stepOrder,
             approverRole: step.approverRole,
@@ -162,7 +170,14 @@ export async function POST(request: NextRequest) {
         },
       },
       include: {
-        template: { select: { id: true, name: true, fields: true } },
+        template: {
+          select: {
+            id: true,
+            name: true,
+            fields: true,
+            route: { select: { id: true, name: true } },
+          },
+        },
         applicant: { select: { id: true, displayName: true } },
         assignments: {
           orderBy: { stepOrder: "asc" },

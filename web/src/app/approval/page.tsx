@@ -56,19 +56,7 @@ export default async function ApprovalLandingPage() {
             </div>
           </div>
         </header>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Link
-            href="/approval/templates"
-            className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition hover:border-sky-200 hover:shadow"
-          >
-            <h2 className="text-lg font-semibold text-zinc-900">申請テンプレート</h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              頻出する申請の項目や承認ルートをテンプレート化し、申請者に配布します。
-            </p>
-            <p className="mt-4 text-xs font-semibold text-sky-600">
-              テンプレ一覧を見る →
-            </p>
-          </Link>
+        <div className="grid gap-4 md:grid-cols-2">
           <Link
             href="/approval/applications"
             className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition hover:border-sky-200 hover:shadow"

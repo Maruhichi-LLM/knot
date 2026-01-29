@@ -4,6 +4,7 @@ import { getSessionFromCookies } from "@/lib/session";
 import { ensureModuleEnabled } from "@/lib/modules";
 import { ROLE_ADMIN } from "@/lib/roles";
 import { RouteCreateForm } from "./route-create-form";
+import { RouteDeleteButton } from "./route-delete-button";
 
 export default async function ApprovalRoutesPage() {
   const session = await getSessionFromCookies();
@@ -19,7 +20,10 @@ export default async function ApprovalRoutesPage() {
     }),
     prisma.approvalRoute.findMany({
       where: { groupId: session.groupId },
-      include: { steps: { orderBy: { stepOrder: "asc" } } },
+      include: {
+        steps: { orderBy: { stepOrder: "asc" } },
+        _count: { select: { templates: true } },
+      },
       orderBy: { createdAt: "desc" },
     }),
   ]);
@@ -65,12 +69,14 @@ export default async function ApprovalRoutesPage() {
                       {route.name}
                     </h3>
                     <p className="text-xs text-zinc-500">
-                      ステップ {route.steps.length} 件
+                      ステップ {route.steps.length} 件 ・ 利用テンプレート{" "}
+                      {route._count.templates} 件
                     </p>
                   </div>
-                  <p className="text-xs text-zinc-500">
-                    作成日: {route.createdAt.toLocaleString("ja-JP")}
-                  </p>
+                  <div className="flex items-center gap-2 text-xs text-zinc-500">
+                    <span>作成日: {route.createdAt.toLocaleString("ja-JP")}</span>
+                    {isAdmin ? <RouteDeleteButton routeId={route.id} /> : null}
+                  </div>
                 </div>
                 <ol className="mt-4 space-y-2 text-sm text-zinc-700">
                   {route.steps.map((step) => (
